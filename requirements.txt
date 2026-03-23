@@ -1,0 +1,19 @@
+# Web framework
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+
+# Validação e serialização
+pydantic==2.11.1
+pydantic-settings==2.8.1
+
+# Logs
+loguru==0.7.3
+
+# Banco de dados
+aiosqlite==0.21.0
+
+# Utils
+python-dotenv==1.1.0
+
+# Testes
+httpx==0.28.1
