@@ -6,9 +6,11 @@ from app.config import settings
 from app.logger import logger, setup_logger
 from app.camera.service import camera_service
 from app.detection.face_detector import face_detector
+from app.storage.db import init_db, close_db
 from app.api.routes_health import router as health_router
 from app.api.routes_camera import router as camera_router
 from app.api.routes_detection import router as detection_router
+from app.api.routes_events import router as events_router
 
 
 @asynccontextmanager
@@ -21,6 +23,7 @@ async def lifespan(app: FastAPI):
     logger.info("SPRESSO FACIAL iniciando — ambiente: {env}", env=settings.app_env)
     logger.info("API disponível em http://{host}:{port}", host=settings.app_host, port=settings.app_port)
 
+    await init_db()
     camera_service.start()
     face_detector.open()
 
@@ -28,6 +31,7 @@ async def lifespan(app: FastAPI):
 
     face_detector.close()
     camera_service.stop()
+    await close_db()
     logger.info("SPRESSO FACIAL encerrado")
 
 
@@ -50,6 +54,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(camera_router)
 app.include_router(detection_router)
+app.include_router(events_router)
 
 
 @app.get("/", include_in_schema=False)

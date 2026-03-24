@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
@@ -9,6 +10,7 @@ import numpy as np
 
 from app.camera.service import camera_service
 from app.detection.face_detector import face_detector, DetectionResult
+from app.services.event_service import save_detection_event
 
 router = APIRouter(prefix="/detection", tags=["detection"])
 
@@ -24,6 +26,7 @@ class FaceBox(BaseModel):
 
 
 class DetectionResponse(BaseModel):
+    event_id: int | None = None
     timestamp: str
     face_count: int
     inference_ms: float
@@ -42,14 +45,16 @@ async def detection_status():
 
 @router.get("/faces", response_model=DetectionResponse)
 async def detect_faces() -> DetectionResponse:
-    """Captura frame, detecta rostos e retorna JSON com bounding boxes."""
+    """Captura frame, detecta rostos, persiste evento e retorna JSON."""
     _check_ready()
 
     frame = camera_service.snapshot(save=False)
     result = face_detector.detect(frame.array)
+    event = await save_detection_event(result)
 
     return DetectionResponse(
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        event_id=event.id,
+        timestamp=event.timestamp.isoformat(),
         face_count=result.count,
         inference_ms=result.inference_ms,
         frame_width=result.frame_width,
@@ -64,22 +69,25 @@ async def detect_faces() -> DetectionResponse:
     response_class=Response,
 )
 async def detection_snapshot() -> Response:
-    """Captura frame e retorna JPEG com bounding boxes desenhados nos rostos."""
+    """Captura frame, detecta rostos, persiste evento e retorna JPEG anotado."""
     _check_ready()
 
     frame = camera_service.snapshot(save=True)
     result = face_detector.detect(frame.array)
 
-    annotated = _draw_detections(frame.array, result)
-    _, encoded = cv2.imencode(".jpg", cv2.cvtColor(annotated, cv2.COLOR_RGB2BGR))
+    snapshot_path = _save_annotated(frame.array, result)
+    event = await save_detection_event(result, snapshot_path=snapshot_path)
+
+    annotated_bytes = snapshot_path.read_bytes()
 
     return Response(
-        content=encoded.tobytes(),
+        content=annotated_bytes,
         media_type="image/jpeg",
         headers={
-            "X-Face-Count":    str(result.count),
-            "X-Inference-Ms":  str(result.inference_ms),
-            "X-Captured-At":   datetime.now(timezone.utc).isoformat(),
+            "X-Event-Id":     str(event.id),
+            "X-Face-Count":   str(result.count),
+            "X-Inference-Ms": str(result.inference_ms),
+            "X-Captured-At":  event.timestamp.isoformat(),
         },
     )
 
@@ -94,23 +102,24 @@ def _check_ready() -> None:
         raise HTTPException(status_code=503, detail="Detector não disponível")
 
 
-def _draw_detections(frame_rgb: np.ndarray, result: DetectionResult) -> np.ndarray:
+def _save_annotated(frame_rgb: np.ndarray, result: DetectionResult) -> Path:
+    """Desenha bounding boxes e salva a imagem anotada em disco."""
     img = frame_rgb.copy()
     for face in result.faces:
         cv2.rectangle(img, (face.x1, face.y1), (face.x2, face.y2),
                       color=(0, 255, 0), thickness=2)
-        label = f"{face.confidence:.0%}"
-        cv2.putText(img, label,
+        cv2.putText(img, f"{face.confidence:.0%}",
                     (face.x1, max(face.y1 - 6, 10)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.55,
-                    (0, 255, 0), 2, cv2.LINE_AA)
-    if result.count == 0:
-        cv2.putText(img, "Nenhum rosto detectado",
-                    (10, 25), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.65, (0, 0, 255), 2, cv2.LINE_AA)
-    else:
-        label = f"{result.count} rosto(s) | {result.inference_ms:.0f}ms"
-        cv2.putText(img, label,
-                    (10, 25), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.65, (0, 255, 0), 2, cv2.LINE_AA)
-    return img
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2, cv2.LINE_AA)
+
+    label = (f"{result.count} rosto(s) | {result.inference_ms:.0f}ms"
+             if result.count else "Nenhum rosto detectado")
+    color = (0, 255, 0) if result.count else (0, 0, 255)
+    cv2.putText(img, label, (10, 25), cv2.FONT_HERSHEY_SIMPLEX,
+                0.65, color, 2, cv2.LINE_AA)
+
+    from datetime import timezone
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+    path = camera_service._snapshots_dir / f"annotated_{ts}.jpg"
+    cv2.imwrite(str(path), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+    return path
