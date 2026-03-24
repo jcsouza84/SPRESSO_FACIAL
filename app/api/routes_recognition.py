@@ -3,16 +3,22 @@ Endpoints de reconhecimento facial:
   GET  /recognition/threshold        — retorna threshold atual
   POST /recognition/threshold        — atualiza threshold em memória
   POST /recognition/test             — testa foto avulsa sem gravar no banco
+  POST /recognition/regen-embeddings — regenera embeddings NULL sem subir novo processo
 """
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
 
 import numpy as np
 
 from app.recognition.matcher import face_matcher
-from app.recognition.embeddings import get_embedding_from_image_bytes, cosine_distance
+from app.recognition.embeddings import get_embedding_from_image_bytes, get_embedding_from_file, cosine_distance
+from app.storage.db import get_session
+from app.storage.models import PersonPhoto
 from app.config import settings
 from app.logger import logger
+from sqlalchemy import select
 
 router = APIRouter(prefix="/recognition", tags=["recognition"])
 
@@ -102,4 +108,63 @@ async def test_photo(file: UploadFile = File(...)):
         "confidence":  0.0,
         "distance":    round(best_distance, 4),
         "threshold":   threshold,
+    }
+
+
+@router.post("/regen-embeddings")
+async def regen_embeddings():
+    """
+    Regenera embeddings de todas as fotos com embedding NULL.
+    Usa o modelo já carregado em memória — sem subir novo processo.
+    """
+    async with get_session() as session:
+        result = await session.execute(
+            select(PersonPhoto).where(PersonPhoto.embedding == None)  # noqa: E711
+        )
+        photos = result.scalars().all()
+
+    if not photos:
+        return {"message": "Nenhuma foto sem embedding. Tudo OK.", "updated": 0, "failed": 0}
+
+    updated = 0
+    failed = 0
+    details = []
+
+    for photo in photos:
+        p = Path(photo.path)
+        if not p.exists():
+            details.append({"photo_id": photo.id, "status": "skip", "reason": "arquivo não encontrado"})
+            failed += 1
+            continue
+
+        emb = get_embedding_from_file(p)
+        if emb is None:
+            details.append({"photo_id": photo.id, "status": "fail", "reason": "rosto não detectado"})
+            failed += 1
+            logger.warning("Embedding falhou para photo_id={}", photo.id)
+            continue
+
+        async with get_session() as session:
+            result = await session.execute(
+                select(PersonPhoto).where(PersonPhoto.id == photo.id)
+            )
+            db_photo = result.scalar_one_or_none()
+            if db_photo:
+                db_photo.embedding = emb.tobytes()
+                await session.commit()
+
+        details.append({"photo_id": photo.id, "status": "ok"})
+        updated += 1
+        logger.info("Embedding regenerado: photo_id={} person_id={}", photo.id, photo.person_id)
+
+    # Recarrega cache com os novos embeddings
+    await face_matcher.load_all()
+    logger.info("Cache recarregado após regen: {} pessoa(s)", face_matcher.persons_in_cache)
+
+    return {
+        "message": f"{updated} embedding(s) gerado(s), {failed} falha(s).",
+        "updated": updated,
+        "failed": failed,
+        "persons_in_cache": face_matcher.persons_in_cache,
+        "details": details,
     }

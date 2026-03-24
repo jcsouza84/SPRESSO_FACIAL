@@ -61,15 +61,12 @@ def get_face_embedding(face_roi_rgb: np.ndarray) -> Optional[np.ndarray]:
     try:
         rec = _get_recognizer()
 
-        # O modelo espera BGR 112x112
+        # get_feat espera BGR uint8 112x112 — ela faz normalização internamente
         face_bgr = cv2.cvtColor(face_roi_rgb, cv2.COLOR_RGB2BGR)
         face_112 = cv2.resize(face_bgr, (112, 112))
 
-        # Normalização padrão InsightFace
-        blob = (face_112.astype(np.float32) - 127.5) / 127.5
-        blob = blob.transpose(2, 0, 1)[np.newaxis]  # (1, 3, 112, 112)
+        embedding = rec.get_feat(face_112).flatten()
 
-        embedding = rec.get_feat(blob).flatten()
         # Normaliza para comprimento unitário (distância coseno)
         norm = np.linalg.norm(embedding)
         if norm > 0:
