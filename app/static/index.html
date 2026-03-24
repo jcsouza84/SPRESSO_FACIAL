@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SPRESSO FACIAL</title>
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #12151d;
+    --border: #1e2435;
+    --accent: #00e5ff;
+    --accent2: #7c4dff;
+    --danger: #ff3d3d;
+    --success: #00e676;
+    --warn: #ffab00;
+    --text: #dde3f0;
+    --muted: #5a6580;
+    --font: 'Inter', system-ui, sans-serif;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* Layout */
+  .shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; display: flex; flex-direction: column; gap: 4px; }
+  .logo { padding: 0 20px 24px; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; font-size: 13.5px; color: var(--muted); border-radius: 0; transition: all .15s; border-left: 3px solid transparent; }
+  .nav-item:hover { color: var(--text); background: rgba(255,255,255,.03); }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,255,.05); }
+  .nav-icon { width: 18px; text-align: center; }
+  .main { padding: 32px; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 14px; }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media(max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .shell { grid-template-columns: 1fr; } .sidebar { flex-direction: row; flex-wrap: wrap; padding: 12px; } }
+
+  /* Stat */
+  .stat { display: flex; flex-direction: column; gap: 4px; }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 12px; color: var(--muted); }
+
+  /* Snapshot */
+  #snapshot-img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; background: #0a0c10; min-height: 200px; }
+  .snapshot-meta { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 100px; font-weight: 600; }
+  .badge-green { background: rgba(0,230,118,.12); color: var(--success); }
+  .badge-red { background: rgba(255,61,61,.12); color: var(--danger); }
+  .badge-blue { background: rgba(0,229,255,.1); color: var(--accent); }
+  .badge-purple { background: rgba(124,77,255,.12); color: var(--accent2); }
+  .badge-warn { background: rgba(255,171,0,.1); color: var(--warn); }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border: none; border-radius: var(--radius); font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-secondary { background: rgba(255,255,255,.07); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn:not(:disabled):hover { opacity: .85; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
+  /* Forms */
+  .form-group { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color .15s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 70px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.03); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,.015); }
+
+  /* Persons list */
+  .person-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .person-card:last-child { border-bottom: none; }
+  .person-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--border); }
+  .person-avatar-ph { width: 42px; height: 42px; border-radius: 50%; background: rgba(0,229,255,.1); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--accent); flex-shrink: 0; }
+  .person-name { font-weight: 600; font-size: 14px; }
+  .person-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .person-actions { margin-left: auto; display: flex; gap: 6px; }
+
+  /* Logs */
+  .log-line { font-size: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.03); display: flex; gap: 12px; }
+  .log-time { color: var(--muted); flex-shrink: 0; }
+  .log-count { color: var(--accent); font-weight: 700; flex-shrink: 0; }
+
+  /* Alert */
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; }
+  .alert-info { background: rgba(0,229,255,.08); border: 1px solid rgba(0,229,255,.2); color: var(--accent); }
+  .alert-success { background: rgba(0,230,118,.08); border: 1px solid rgba(0,230,118,.2); color: var(--success); }
+  .alert-error { background: rgba(255,61,61,.08); border: 1px solid rgba(255,61,61,.2); color: var(--danger); }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .modal-close { position: absolute; top: 16px; right: 16px; cursor: pointer; }
+
+  /* Upload zone */
+  .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 24px; text-align: center; cursor: pointer; transition: border-color .15s; }
+  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); }
+  .upload-zone input { display: none; }
+  .upload-preview { width: 100%; max-height: 200px; object-fit: contain; margin-top: 10px; border-radius: 8px; display: none; }
+
+  /* Spin */
+  .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,229,255,.3); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Threshold slider */
+  .threshold-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  .threshold-val { font-weight: 700; color: var(--accent); min-width: 36px; }
+
+  /* Recognition result overlay */
+  .rec-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  .snapshot-wrapper { position: relative; }
+
+  /* Pulse dot */
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">SPRESSO <span>FACIAL</span></div>
+    <div class="nav-item active" data-page="monitor">
+      <span class="nav-icon">📷</span> Monitor
+    </div>
+    <div class="nav-item" data-page="persons">
+      <span class="nav-icon">👤</span> Pessoas
+    </div>
+    <div class="nav-item" data-page="events">
+      <span class="nav-icon">📋</span> Eventos
+    </div>
+    <div class="nav-item" data-page="settings">
+      <span class="nav-icon">⚙️</span> Calibração
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ================================================ MONITOR -->
+    <div class="page active" id="page-monitor">
+      <h2 style="margin-bottom:20px;font-size:20px">Monitor ao vivo</h2>
+      <div class="grid-2">
+        <div>
+          <div class="card" style="padding:0;overflow:hidden">
+            <div class="snapshot-wrapper">
+              <img id="snapshot-img" src="" alt="Aguardando captura..." style="width:100%;display:block;min-height:240px;background:#0a0c10"/>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btn-scan" onclick="scan()">🔍 Detectar agora</button>
+            <button class="btn btn-secondary" id="btn-auto" onclick="toggleAuto()">▶ Auto (5s)</button>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-title">Último resultado</div>
+            <div id="result-faces" style="font-size:13px;color:var(--muted)">Nenhuma detecção ainda.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Status do sistema</div>
+            <div id="status-block" style="font-size:13px;color:var(--muted)">Verificando...</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Histórico recente</div>
+            <div id="log-list" style="max-height:180px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================ PERSONS -->
+    <div class="page" id="page-persons">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 style="font-size:20px">Pessoas cadastradas</h2>
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-person')">+ Cadastrar</button>
+      </div>
+      <div class="card" style="padding:0">
+        <div id="persons-list" style="min-height:80px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px">
+          Carregando...
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================ EVENTS -->
+    <div class="page" id="page-events">
+      <h2 style="margin-bottom:20px;font-size:20px">Eventos de detecção</h2>
+      <div class="card" style="padding:0;overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Data / hora</th>
+              <th>Rostos</th>
+              <th>Inferência</th>
+              <th>Snapshot</th>
+            </tr>
+          </thead>
+          <tbody id="events-tbody">
+            <tr><td colspan="5" style="text-align:center;color:var(--muted)">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="loadEvents()">↺ Atualizar</button>
+    </div>
+
+    <!-- ================================================ SETTINGS -->
+    <div class="page" id="page-settings">
+      <h2 style="margin-bottom:20px;font-size:20px">Calibração de reconhecimento</h2>
+      <div class="card">
+        <div class="card-title">Threshold de distância coseno</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+          Valores menores = mais restritivo (menos falsos positivos, pode falhar em iluminação ruim).<br>
+          Valores maiores = mais permissivo (reconhece mais fácil, mas pode confundir pessoas parecidas).<br>
+          <strong style="color:var(--text)">Recomendado: 0.40 – 0.50</strong>
+        </p>
+        <div class="threshold-row">
+          <input type="range" id="slider-threshold" min="0.20" max="0.70" step="0.01" value="0.45" oninput="updateThresholdLabel(this.value)"/>
+          <span class="threshold-val" id="label-threshold">0.45</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm" onclick="saveThreshold()">Salvar threshold</button>
+        </div>
+        <div id="threshold-status" style="font-size:12px;margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Teste de reconhecimento com foto</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+          Faça upload de uma foto para testar quanto o sistema consegue identificar corretamente.
+        </p>
+        <div class="upload-zone" id="test-zone" onclick="document.getElementById('test-file').click()" 
+             ondragover="event.preventDefault();this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="handleTestDrop(event)">
+          <input type="file" id="test-file" accept="image/*" onchange="previewTest(this)"/>
+          <div id="test-placeholder">📁 Clique ou arraste uma foto para testar</div>
+          <img id="test-preview" class="upload-preview"/>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm" onclick="runPhotoTest()" id="btn-test-photo" disabled>Testar foto</button>
+        </div>
+        <div id="test-result" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Cache de reconhecimento</div>
+        <div id="cache-status" style="font-size:13px;color:var(--muted)">Verificando...</div>
+        <div class="btn-row">
+          <button class="btn btn-secondary btn-sm" onclick="loadCacheStatus()">↺ Atualizar cache info</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ============================================================ MODAL ADD PERSON -->
+<div class="modal-overlay" id="modal-add-person">
+  <div class="modal">
+    <div class="modal-title">Cadastrar pessoa</div>
+    <div id="add-person-alert"></div>
+    <div class="form-group">
+      <label>Nome *</label>
+      <input id="p-name" type="text" placeholder="Nome completo"/>
+    </div>
+    <div class="form-group">
+      <label>Categoria *</label>
+      <select id="p-category">
+        <option value="blacklist">🚫 Blacklist</option>
+        <option value="vip" selected>⭐ VIP</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Telefone</label>
+      <input id="p-phone" type="text" placeholder="(11) 99999-9999"/>
+    </div>
+    <div class="form-group">
+      <label>Observação</label>
+      <textarea id="p-observation" placeholder="Notas adicionais..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-add-person')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="submitAddPerson()">Criar pessoa</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ MODAL ADD PHOTO -->
+<div class="modal-overlay" id="modal-add-photo">
+  <div class="modal">
+    <div class="modal-title" id="add-photo-title">Adicionar foto de referência</div>
+    <div id="add-photo-alert"></div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+      Envie uma foto nítida do rosto. Evite fotos com óculos de sol, obstrução, ou baixa iluminação.
+    </p>
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('photo-file').click()"
+         ondragover="event.preventDefault();this.classList.add('dragover')"
+         ondragleave="this.classList.remove('dragover')"
+         ondrop="handleUploadDrop(event)">
+      <input type="file" id="photo-file" accept="image/*" onchange="previewUpload(this)"/>
+      <div id="upload-placeholder">📁 Clique ou arraste uma foto</div>
+      <img id="upload-preview" class="upload-preview"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-add-photo')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="btn-upload-photo" onclick="submitPhoto()" disabled>Enviar foto</button>
+      <button class="btn btn-secondary btn-sm" onclick="capturePhoto()">📷 Capturar câmera</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let autoTimer = null;
+let currentPersonId = null;
+let lastScanBlob = null;
+
+// ============================================================ NAV
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    const page = item.dataset.page;
+    document.getElementById('page-' + page).classList.add('active');
+    if (page === 'persons') loadPersons();
+    if (page === 'events') loadEvents();
+    if (page === 'settings') { loadCacheStatus(); loadThreshold(); }
+  });
+});
+
+// ============================================================ MONITOR
+
+async function getStatus() {
+  try {
+    const [health, det] = await Promise.all([
+      fetch(API + '/health').then(r => r.json()),
+      fetch(API + '/detection/status').then(r => r.json()),
+    ]);
+    document.getElementById('status-block').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="live-dot"></span>
+          <span>API: <strong>${health.status || 'ok'}</strong></span>
+        </div>
+        <div>Detector: <span class="badge ${det.ready ? 'badge-green' : 'badge-red'}">${det.ready ? 'Pronto' : 'Offline'}</span></div>
+        <div>Pessoas no cache: <strong style="color:var(--accent)">${det.persons_in_cache}</strong></div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('status-block').innerHTML = `<span style="color:var(--danger)">Sem conexão com a API</span>`;
+  }
+}
+
+async function scan() {
+  const btn = document.getElementById('btn-scan');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Detectando...';
+  try {
+    const resp = await fetch(API + '/detection/snapshot');
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    document.getElementById('snapshot-img').src = url;
+
+    const faces = parseInt(resp.headers.get('X-Face-Count') || '0');
+    const ms = resp.headers.get('X-Inference-Ms');
+    const evId = resp.headers.get('X-Event-Id');
+
+    // Fetch JSON para ter dados de reconhecimento
+    const jsonResp = await fetch(API + '/detection/faces');
+    const data = await jsonResp.json();
+
+    renderFaceResult(data, ms);
+    addLogLine(data.timestamp, faces, evId);
+    await getStatus();
+  } catch(e) {
+    document.getElementById('result-faces').innerHTML = `<span style="color:var(--danger)">Erro: ${e.message}</span>`;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '🔍 Detectar agora';
+}
+
+function renderFaceResult(data, ms) {
+  const el = document.getElementById('result-faces');
+  if (!data.faces || data.faces.length === 0) {
+    el.innerHTML = '<span style="color:var(--muted)">Nenhum rosto detectado.</span>';
+    return;
+  }
+  el.innerHTML = data.faces.map((f, i) => {
+    const cat = f.category ? `<span class="badge ${f.category === 'blacklist' ? 'badge-red' : 'badge-purple'}">${f.category}</span>` : '';
+    const who = f.matched
+      ? `<strong style="color:var(--success)">${f.person_name}</strong> ${cat} <span style="color:var(--muted)">${f.recognition_confidence.toFixed(0)}% conf.</span>`
+      : `<span style="color:var(--muted)">Desconhecido</span>`;
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:3px">Rosto ${i+1} — det. ${(f.confidence*100).toFixed(0)}%</div>
+      <div>${who}</div>
+    </div>`;
+  }).join('') + `<div style="font-size:11px;color:var(--muted);margin-top:8px">Inferência Hailo: ${data.inference_ms?.toFixed(0)}ms</div>`;
+}
+
+function addLogLine(ts, count, evId) {
+  const list = document.getElementById('log-list');
+  const d = new Date(ts);
+  const time = d.toLocaleTimeString('pt-BR');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${time}</span><span class="log-count">${count} rosto(s)</span><span style="color:var(--muted)">ev#${evId}</span>`;
+  list.prepend(line);
+  if (list.children.length > 20) list.lastChild.remove();
+}
+
+function toggleAuto() {
+  const btn = document.getElementById('btn-auto');
+  if (autoTimer) {
+    clearInterval(autoTimer);
+    autoTimer = null;
+    btn.innerHTML = '▶ Auto (5s)';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-secondary');
+  } else {
+    scan();
+    autoTimer = setInterval(scan, 5000);
+    btn.innerHTML = '⏹ Parar auto';
+    btn.classList.remove('btn-secondary');
+    btn.classList.add('btn-primary');
+  }
+}
+
+// ============================================================ PERSONS
+
+async function loadPersons() {
+  const el = document.getElementById('persons-list');
+  el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)"><span class="spin"></span></div>';
+  try {
+    const persons = await fetch(API + '/persons?active_only=false').then(r => r.json());
+    if (!persons.length) {
+      el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Nenhuma pessoa cadastrada.</div>';
+      return;
+    }
+    el.innerHTML = persons.map(p => {
+      const catBadge = p.category === 'blacklist'
+        ? '<span class="badge badge-red">🚫 Blacklist</span>'
+        : '<span class="badge badge-purple">⭐ VIP</span>';
+      const statusBadge = p.active ? '' : '<span class="badge badge-warn" style="margin-left:6px">Inativo</span>';
+      return `<div class="person-card">
+        <div class="person-avatar-ph">👤</div>
+        <div>
+          <div class="person-name">${esc(p.name)} ${catBadge} ${statusBadge}</div>
+          <div class="person-meta">${p.photo_count} foto(s) cadastrada(s)${p.phone ? ' · ' + esc(p.phone) : ''}</div>
+        </div>
+        <div class="person-actions">
+          <button class="btn btn-secondary btn-sm" onclick="openAddPhoto(${p.id}, '${esc(p.name)}')">+ Foto</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePerson(${p.id}, '${esc(p.name)}')">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<div style="padding:20px;color:var(--danger)">${e.message}</div>`;
+  }
+}
+
+async function submitAddPerson() {
+  const name = document.getElementById('p-name').value.trim();
+  const category = document.getElementById('p-category').value;
+  const phone = document.getElementById('p-phone').value.trim() || null;
+  const observation = document.getElementById('p-observation').value.trim() || null;
+  if (!name) { showModalAlert('add-person-alert', 'Nome obrigatório.', 'error'); return; }
+
+  try {
+    const r = await fetch(API + '/persons', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, category, phone, observation}),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    closeModal('modal-add-person');
+    loadPersons();
+    document.getElementById('p-name').value = '';
+    document.getElementById('p-phone').value = '';
+    document.getElementById('p-observation').value = '';
+  } catch(e) {
+    showModalAlert('add-person-alert', 'Erro: ' + e.message, 'error');
+  }
+}
+
+async function deletePerson(id, name) {
+  if (!confirm(`Remover "${name}" permanentemente?`)) return;
+  await fetch(API + '/persons/' + id, {method:'DELETE'});
+  loadPersons();
+}
+
+// ============================================================ PHOTOS
+
+function openAddPhoto(personId, name) {
+  currentPersonId = personId;
+  document.getElementById('add-photo-title').textContent = `Adicionar foto — ${name}`;
+  document.getElementById('upload-preview').style.display = 'none';
+  document.getElementById('upload-placeholder').style.display = 'block';
+  document.getElementById('photo-file').value = '';
+  document.getElementById('btn-upload-photo').disabled = true;
+  openModal('modal-add-photo');
+}
+
+function previewUpload(input) {
+  if (!input.files[0]) return;
+  const url = URL.createObjectURL(input.files[0]);
+  const img = document.getElementById('upload-preview');
+  img.src = url;
+  img.style.display = 'block';
+  document.getElementById('upload-placeholder').style.display = 'none';
+  document.getElementById('btn-upload-photo').disabled = false;
+}
+
+function handleUploadDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  document.getElementById('photo-file').files = e.dataTransfer.files;
+  previewUpload({files: e.dataTransfer.files});
+}
+
+async function submitPhoto() {
+  if (!currentPersonId) return;
+  const file = document.getElementById('photo-file').files[0];
+  if (!file) return;
+  const btn = document.getElementById('btn-upload-photo');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Enviando...';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const r = await fetch(API + `/persons/${currentPersonId}/photos/upload`, {method:'POST', body: fd});
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+    showModalAlert('add-photo-alert', '✅ Foto cadastrada com sucesso! Embedding gerado.', 'success');
+    loadPersons();
+    getStatus();
+  } catch(e) {
+    showModalAlert('add-photo-alert', 'Erro: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.innerHTML = 'Enviar foto';
+}
+
+async function capturePhoto() {
+  if (!currentPersonId) return;
+  const btn = document.querySelector('#modal-add-photo .btn-secondary:last-child');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const r = await fetch(API + `/persons/${currentPersonId}/photos/capture`, {method:'POST'});
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+    showModalAlert('add-photo-alert', '📷 Foto capturada pela câmera! Embedding gerado.', 'success');
+    loadPersons(); getStatus();
+  } catch(e) {
+    showModalAlert('add-photo-alert', 'Erro: ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.innerHTML = '📷 Capturar câmera';
+}
+
+// ============================================================ EVENTS
+
+async function loadEvents() {
+  const tbody = document.getElementById('events-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center"><span class="spin"></span></td></tr>';
+  try {
+    const events = await fetch(API + '/events?limit=30').then(r => r.json());
+    if (!events.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted)">Sem eventos ainda.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = events.map(e => {
+      const d = new Date(e.timestamp);
+      const dt = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR');
+      return `<tr>
+        <td style="color:var(--muted)">#${e.id}</td>
+        <td>${dt}</td>
+        <td><span class="badge ${e.face_count > 0 ? 'badge-green' : 'badge-red'}">${e.face_count}</span></td>
+        <td style="color:var(--muted)">${e.inference_ms?.toFixed(0)}ms</td>
+        <td>${e.snapshot_path ? '<span class="badge badge-blue">✓</span>' : '<span style="color:var(--muted)">—</span>'}</td>
+      </tr>`;
+    }).join('');
+  } catch(ex) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">${ex.message}</td></tr>`;
+  }
+}
+
+// ============================================================ SETTINGS / CALIBRATION
+
+function updateThresholdLabel(v) {
+  document.getElementById('label-threshold').textContent = parseFloat(v).toFixed(2);
+}
+
+async function loadThreshold() {
+  try {
+    const r = await fetch(API + '/recognition/threshold');
+    if (r.ok) {
+      const d = await r.json();
+      document.getElementById('slider-threshold').value = d.threshold;
+      updateThresholdLabel(d.threshold);
+    }
+  } catch(_) {}
+}
+
+async function saveThreshold() {
+  const val = parseFloat(document.getElementById('slider-threshold').value);
+  try {
+    const r = await fetch(API + '/recognition/threshold', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({threshold: val}),
+    });
+    const d = await r.json();
+    const el = document.getElementById('threshold-status');
+    el.innerHTML = r.ok
+      ? `<span style="color:var(--success)">✅ Threshold atualizado para ${val.toFixed(2)}</span>`
+      : `<span style="color:var(--danger)">${d.detail}</span>`;
+  } catch(e) {
+    document.getElementById('threshold-status').innerHTML = `<span style="color:var(--danger)">${e.message}</span>`;
+  }
+}
+
+async function loadCacheStatus() {
+  try {
+    const d = await fetch(API + '/detection/status').then(r => r.json());
+    document.getElementById('cache-status').innerHTML =
+      `<strong style="color:var(--accent)">${d.persons_in_cache}</strong> pessoa(s) com embedding no cache de reconhecimento.`;
+  } catch(_) {
+    document.getElementById('cache-status').textContent = 'Erro ao consultar.';
+  }
+}
+
+// Teste de foto avulsa
+function previewTest(input) {
+  if (!input.files[0]) return;
+  const url = URL.createObjectURL(input.files[0]);
+  const img = document.getElementById('test-preview');
+  img.src = url;
+  img.style.display = 'block';
+  document.getElementById('test-placeholder').style.display = 'none';
+  document.getElementById('btn-test-photo').disabled = false;
+}
+
+function handleTestDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  document.getElementById('test-file').files = e.dataTransfer.files;
+  previewTest({files: e.dataTransfer.files});
+}
+
+async function runPhotoTest() {
+  const file = document.getElementById('test-file').files[0];
+  if (!file) return;
+  const btn = document.getElementById('btn-test-photo');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Testando...';
+
+  // Cria pessoa temporária e apaga depois? Não.
+  // Chama /recognition/test que vamos criar
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const r = await fetch(API + '/recognition/test', {method:'POST', body: fd});
+    const data = await r.json();
+    const el = document.getElementById('test-result');
+    if (!r.ok) { el.innerHTML = `<div class="alert alert-error">${data.detail}</div>`; return; }
+
+    if (data.matched) {
+      el.innerHTML = `<div class="alert alert-success">
+        ✅ <strong>${data.person_name}</strong> identificado(a) com ${data.confidence.toFixed(0)}% de confiança.<br>
+        Categoria: ${data.category} | Distância: ${data.distance.toFixed(4)} (threshold: ${data.threshold})
+      </div>`;
+    } else {
+      el.innerHTML = `<div class="alert" style="background:rgba(255,171,0,.08);border:1px solid rgba(255,171,0,.2);color:var(--warn)">
+        ⚠️ Pessoa não identificada. Melhor distância: ${data.distance.toFixed(4)} (threshold: ${data.threshold})
+      </div>`;
+    }
+  } catch(e) {
+    document.getElementById('test-result').innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+  btn.disabled = false; btn.innerHTML = 'Testar foto';
+}
+
+// ============================================================ MODAL utils
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  const a = document.getElementById(id.replace('modal-', '') + '-alert');
+  if (a) a.innerHTML = '';
+}
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+});
+
+function showModalAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+}
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ============================================================ INIT
+getStatus();
+</script>
+</body>
+</html>

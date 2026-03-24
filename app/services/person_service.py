@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.storage.db import get_session
 from app.storage.models import Person, PersonCategory, PersonPhoto
+from app.recognition.embeddings import get_embedding_from_image_bytes
 from app.config import settings
 from app.logger import logger
 
@@ -170,9 +171,19 @@ async def add_photo(person_id: int, image_bytes: bytes, extension: str = "jpg") 
         path = person_dir / f"photo_{ts}.{extension}"
         path.write_bytes(image_bytes)
 
+        # Gera embedding antes de salvar no banco
+        embedding_bytes: bytes | None = None
+        emb = get_embedding_from_image_bytes(image_bytes)
+        if emb is not None:
+            embedding_bytes = emb.tobytes()
+            logger.debug("Embedding gerado para person_id={}", person_id)
+        else:
+            logger.warning("Não foi possível gerar embedding para person_id={}", person_id)
+
         photo = PersonPhoto(
             person_id=person_id,
             path=str(path),
+            embedding=embedding_bytes,
             created_at=_now(),
         )
         session.add(photo)

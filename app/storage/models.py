@@ -3,7 +3,7 @@ Modelos SQLAlchemy para o banco de dados local (SQLite).
 """
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, Float, Text, DateTime, ForeignKey, Enum, Boolean
+from sqlalchemy import String, Integer, Float, Text, DateTime, ForeignKey, Enum, Boolean, LargeBinary
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -69,6 +69,7 @@ class PersonPhoto(Base):
     id:         Mapped[int]  = mapped_column(Integer, primary_key=True, autoincrement=True)
     person_id:  Mapped[int]  = mapped_column(Integer, ForeignKey("persons.id"), nullable=False)
     path:       Mapped[str]  = mapped_column(String(512), nullable=False)
+    embedding:  Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     person: Mapped["Person"] = relationship("Person", back_populates="photos")

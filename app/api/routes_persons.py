@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.camera.service import camera_service
 from app.storage.models import PersonCategory
+from app.recognition.matcher import face_matcher
 from app.services.person_service import (
     create_person, get_person, list_persons,
     update_person, delete_person, add_photo, delete_photo,
@@ -147,6 +148,7 @@ async def upload_photo(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    await face_matcher.refresh_person(person_id)
     return PhotoResponse(**photo.to_dict())
 
 
@@ -169,6 +171,7 @@ async def capture_photo(person_id: int) -> PhotoResponse:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    await face_matcher.refresh_person(person_id)
     return PhotoResponse(**photo.to_dict())
 
 
@@ -197,6 +200,7 @@ async def remove_photo(person_id: int, photo_id: int) -> None:
     removed = await delete_photo(photo_id)
     if not removed:
         raise HTTPException(status_code=404, detail="Foto não encontrada")
+    await face_matcher.refresh_person(person_id)
 
 
 # ---------------------------------------------------------------------------
