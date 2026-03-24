@@ -1,8 +1,9 @@
 """
 Modelos SQLAlchemy para o banco de dados local (SQLite).
 """
-from datetime import datetime, timezone
-from sqlalchemy import String, Integer, Float, Text, DateTime, ForeignKey
+import enum
+from datetime import datetime
+from sqlalchemy import String, Integer, Float, Text, DateTime, ForeignKey, Enum, Boolean
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -10,10 +11,84 @@ class Base(DeclarativeBase):
     pass
 
 
+# ---------------------------------------------------------------------------
+# Pessoas
+# ---------------------------------------------------------------------------
+
+class PersonCategory(str, enum.Enum):
+    blacklist = "blacklist"
+    vip       = "vip"
+
+
+class Person(Base):
+    """
+    Pessoa cadastrada no sistema — pode ser blacklist ou VIP.
+    """
+    __tablename__ = "persons"
+
+    id:         Mapped[int]    = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name:       Mapped[str]    = mapped_column(String(200), nullable=False)
+    phone:      Mapped[str | None] = mapped_column(String(30), nullable=True)
+    category:   Mapped[PersonCategory] = mapped_column(
+        Enum(PersonCategory), nullable=False, default=PersonCategory.blacklist
+    )
+    observation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    active:     Mapped[bool]   = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    photos: Mapped[list["PersonPhoto"]] = relationship(
+        "PersonPhoto",
+        back_populates="person",
+        cascade="all, delete-orphan",
+    )
+
+    def to_dict(self, include_photos: bool = True) -> dict:
+        d = {
+            "id":          self.id,
+            "name":        self.name,
+            "phone":       self.phone,
+            "category":    self.category.value,
+            "observation": self.observation,
+            "active":      self.active,
+            "photo_count": len(self.photos),
+            "created_at":  self.created_at.isoformat(),
+            "updated_at":  self.updated_at.isoformat(),
+        }
+        if include_photos:
+            d["photos"] = [p.to_dict() for p in self.photos]
+        return d
+
+
+class PersonPhoto(Base):
+    """
+    Foto de referência de uma pessoa cadastrada (máx. 5 por pessoa).
+    """
+    __tablename__ = "person_photos"
+
+    id:         Mapped[int]  = mapped_column(Integer, primary_key=True, autoincrement=True)
+    person_id:  Mapped[int]  = mapped_column(Integer, ForeignKey("persons.id"), nullable=False)
+    path:       Mapped[str]  = mapped_column(String(512), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="photos")
+
+    def to_dict(self) -> dict:
+        return {
+            "id":         self.id,
+            "person_id":  self.person_id,
+            "path":       self.path,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Eventos de detecção
+# ---------------------------------------------------------------------------
+
 class DetectionEvent(Base):
     """
     Registra cada vez que o sistema roda o detector e obtém resultado.
-    Um evento = uma chamada ao pipeline de detecção.
     """
     __tablename__ = "detection_events"
 

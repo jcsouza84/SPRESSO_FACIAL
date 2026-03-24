@@ -11,6 +11,7 @@ from app.api.routes_health import router as health_router
 from app.api.routes_camera import router as camera_router
 from app.api.routes_detection import router as detection_router
 from app.api.routes_events import router as events_router
+from app.api.routes_persons import router as persons_router
 
 
 @asynccontextmanager
@@ -55,6 +56,7 @@ app.include_router(health_router)
 app.include_router(camera_router)
 app.include_router(detection_router)
 app.include_router(events_router)
+app.include_router(persons_router)
 
 
 @app.get("/", include_in_schema=False)
