@@ -124,16 +124,12 @@ class FaceMatcher:
     # Reconhecimento
     # ------------------------------------------------------------------
 
-    def identify(self, face_roi_rgb: np.ndarray) -> RecognitionResult:
+    def identify_from_embedding(self, embedding: np.ndarray) -> RecognitionResult:
         """
-        Identifica a pessoa a partir do crop de um rosto (RGB).
-        Retorna RecognitionResult com a melhor correspondência ou UNKNOWN.
+        Identifica a pessoa a partir de um embedding já calculado.
+        Evita re-computar o embedding quando ele já foi gerado no pipeline.
         """
         if not self._cache:
-            return UNKNOWN
-
-        embedding = get_face_embedding(face_roi_rgb)
-        if embedding is None:
             return UNKNOWN
 
         best_distance = float("inf")
@@ -171,6 +167,21 @@ class FaceMatcher:
             confidence=0.0,
             distance=best_distance,
         )
+
+    def identify(self, face_roi_rgb: np.ndarray) -> RecognitionResult:
+        """
+        Identifica a pessoa a partir do crop de um rosto (RGB).
+        Gera o embedding internamente. Prefira identify_from_embedding
+        quando o embedding já estiver disponível.
+        """
+        if not self._cache:
+            return UNKNOWN
+
+        embedding = get_face_embedding(face_roi_rgb)
+        if embedding is None:
+            return UNKNOWN
+
+        return self.identify_from_embedding(embedding)
 
     @property
     def persons_in_cache(self) -> int:

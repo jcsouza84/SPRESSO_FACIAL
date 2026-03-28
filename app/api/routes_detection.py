@@ -10,8 +10,8 @@ import numpy as np
 
 from app.camera.service import camera_service
 from app.detection.face_detector import face_detector, DetectionResult, DetectedFace
-from app.recognition.matcher import face_matcher, RecognitionResult
-from app.recognition.embeddings import get_face_embedding
+from app.recognition.matcher import face_matcher, UNKNOWN
+from app.recognition.embeddings import get_embeddings_from_frame, get_face_embedding
 from app.services.event_service import save_detection_event
 from app.config import settings
 
@@ -136,32 +136,66 @@ def _save_face_crop(roi_rgb: np.ndarray, event_ts: str, idx: int) -> Path:
     return path
 
 
+def _iou(b1: list[int], b2: np.ndarray) -> float:
+    """IoU entre bbox SCRFD [x1,y1,x2,y2] e bbox InsightFace numpy."""
+    ix1 = max(b1[0], float(b2[0]))
+    iy1 = max(b1[1], float(b2[1]))
+    ix2 = min(b1[2], float(b2[2]))
+    iy2 = min(b1[3], float(b2[3]))
+    inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+    if inter == 0.0:
+        return 0.0
+    a1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
+    a2 = (float(b2[2]) - float(b2[0])) * (float(b2[3]) - float(b2[1]))
+    return inter / (a1 + a2 - inter + 1e-6)
+
+
 def _recognize_and_save_crops(
     frame_rgb: np.ndarray,
     result: DetectionResult,
 ) -> tuple[list[FaceBox], list[dict]]:
     """
-    Para cada rosto detectado:
-      1. Extrai ROI com margem
-      2. Salva crop em disco
-      3. Gera embedding (mesmo pipeline da referência)
-      4. Identifica contra o cache
+    Pipeline unificado de reconhecimento:
+      1. Uma única passagem InsightFace det_500m sobre o frame completo
+         → bboxes alinhados + embeddings para todos os rostos
+      2. Associa cada detecção SCRFD/Hailo com a detecção InsightFace
+         mais próxima (IoU ≥ 0.3)
+      3. Usa o embedding já alinhado para reconhecimento (sem re-detectar)
+      4. Fallback para ROI crop se InsightFace não encontrou o rosto
+
     Retorna (lista FaceBox, lista de dicts {crop_path, embedding}).
     """
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
     boxes: list[FaceBox] = []
     crops: list[dict] = []
 
+    # Única passagem InsightFace sobre o frame inteiro
+    frame_embeddings = get_embeddings_from_frame(frame_rgb)
+
     for i, face in enumerate(result.faces):
+        scrfd_box = [face.x1, face.y1, face.x2, face.y2]
+
+        # Associa com a detecção InsightFace pelo maior IoU
+        best_idx, best_iou = -1, 0.0
+        for j, (ins_bbox, _, _) in enumerate(frame_embeddings):
+            iou_val = _iou(scrfd_box, ins_bbox)
+            if iou_val > best_iou:
+                best_iou = iou_val
+                best_idx = j
+
         roi = _extract_roi(frame_rgb, face)
         crop_path = _save_face_crop(roi, ts, i)
 
-        # Embedding — mesmo processo usado no reconhecimento
-        emb = get_face_embedding(roi)
-        emb_bytes = emb.tobytes() if emb is not None else None
-
-        # Reconhecimento contra cache
-        rec = face_matcher.identify(roi)
+        if best_idx >= 0 and best_iou >= 0.3:
+            # Caminho ideal: embedding alinhado da passagem única
+            _, _, embedding = frame_embeddings[best_idx]
+            emb_bytes = embedding.tobytes()
+            rec = face_matcher.identify_from_embedding(embedding)
+        else:
+            # Fallback: InsightFace não encontrou o rosto no frame completo
+            embedding = get_face_embedding(roi)
+            emb_bytes = embedding.tobytes() if embedding is not None else None
+            rec = face_matcher.identify_from_embedding(embedding) if embedding is not None else UNKNOWN
 
         boxes.append(FaceBox(
             **face.to_dict(),

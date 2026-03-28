@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     camera_fps: int = Field(default=15)
 
     # Reconhecimento facial
-    recognition_threshold: float = Field(default=0.45)
+    recognition_threshold: float = Field(default=0.50)
 
     # Armazenamento
     data_dir: Path = Field(default=Path("data"))
