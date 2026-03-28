@@ -116,22 +116,35 @@
   .upload-zone input { display: none; }
   .upload-preview { width: 100%; max-height: 200px; object-fit: contain; margin-top: 10px; border-radius: 8px; display: none; }
 
-  /* Spin */
-  .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,229,255,.3); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Threshold slider */
-  .threshold-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-  input[type=range] { flex: 1; accent-color: var(--accent); }
-  .threshold-val { font-weight: 700; color: var(--accent); min-width: 36px; }
-
-  /* Recognition result overlay */
-  .rec-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-  .snapshot-wrapper { position: relative; }
-
   /* Pulse dot */
   .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; animation: pulse 1.5s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* Spin */
+  .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,229,255,.3); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  .threshold-val { font-weight: 700; color: var(--accent); min-width: 36px; }
+
+  /* Threshold slider */
+  .threshold-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+
+  /* Match banner */
+  .match-banner { position: absolute; bottom: 0; left: 0; right: 0; padding: 10px 16px;
+    background: linear-gradient(transparent, rgba(0,230,118,.85));
+    display: flex; align-items: center; gap: 10px; opacity: 0;
+    transition: opacity .3s; pointer-events: none; }
+  .match-banner.show { opacity: 1; }
+  .match-banner .match-icon { font-size: 22px; }
+  .match-banner .match-name { font-weight: 700; font-size: 15px; color: #fff; }
+  .match-banner .match-cat  { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+  .match-banner .match-cat.blacklist { background: rgba(255,61,61,.7); color: #fff; }
+  .match-banner .match-cat.vip       { background: rgba(124,77,255,.7); color: #fff; }
+  .match-banner .match-conf { margin-left: auto; font-size: 12px; color: rgba(255,255,255,.8); }
+
+  /* Glow verde na borda da câmera */
+  .snapshot-wrapper { position: relative; border-radius: 8px; overflow: hidden; transition: box-shadow .3s; }
+  .snapshot-wrapper.matched { box-shadow: 0 0 0 3px var(--success), 0 0 24px rgba(0,230,118,.4); }
 </style>
 </head>
 <body>
@@ -165,7 +178,14 @@
         <div>
           <div class="card" style="padding:0;overflow:hidden">
             <div class="snapshot-wrapper">
+          <div class="snapshot-wrapper" id="snapshot-wrapper">
               <img id="snapshot-img" src="" alt="Aguardando captura..." style="width:100%;display:block;min-height:240px;background:#0a0c10"/>
+              <div class="match-banner" id="match-banner">
+                <span class="match-icon">✅</span>
+                <span class="match-name" id="match-name">—</span>
+                <span class="match-cat" id="match-cat"></span>
+                <span class="match-conf" id="match-conf"></span>
+              </div>
             </div>
           </div>
           <div class="btn-row">
@@ -470,12 +490,42 @@ async function scan() {
   btn.innerHTML = '🔍 Detectar agora';
 }
 
+let _matchTimer = null;
+
+function showMatchBanner(name, category, confidence) {
+  const banner  = document.getElementById('match-banner');
+  const wrapper = document.getElementById('snapshot-wrapper');
+  const catEl   = document.getElementById('match-cat');
+
+  document.getElementById('match-name').textContent = name;
+  document.getElementById('match-conf').textContent  = `${confidence.toFixed(0)}% conf.`;
+  catEl.textContent  = category === 'blacklist' ? '🚫 Blacklist' : '⭐ VIP';
+  catEl.className    = `match-cat ${category}`;
+
+  banner.classList.add('show');
+  wrapper.classList.add('matched');
+
+  if (_matchTimer) clearTimeout(_matchTimer);
+  _matchTimer = setTimeout(() => {
+    banner.classList.remove('show');
+    wrapper.classList.remove('matched');
+    _matchTimer = null;
+  }, 3500);
+}
+
 function renderFaceResult(data, ms) {
   const el = document.getElementById('result-faces');
   if (!data.faces || data.faces.length === 0) {
     el.innerHTML = '<span style="color:var(--muted)">Nenhum rosto detectado.</span>';
     return;
   }
+
+  // Verifica se algum rosto foi identificado → aciona banner
+  const matched = data.faces.find(f => f.matched);
+  if (matched) {
+    showMatchBanner(matched.person_name, matched.category, matched.recognition_confidence);
+  }
+
   el.innerHTML = data.faces.map((f, i) => {
     const cat = f.category ? `<span class="badge ${f.category === 'blacklist' ? 'badge-red' : 'badge-purple'}">${f.category}</span>` : '';
     const who = f.matched
