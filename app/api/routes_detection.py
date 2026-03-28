@@ -11,9 +11,14 @@ import numpy as np
 from app.camera.service import camera_service
 from app.detection.face_detector import face_detector, DetectionResult, DetectedFace
 from app.recognition.matcher import face_matcher, RecognitionResult
+from app.recognition.embeddings import get_face_embedding
 from app.services.event_service import save_detection_event
+from app.config import settings
 
 router = APIRouter(prefix="/detection", tags=["detection"])
+
+# Diretório para crops de faces detectadas
+_CROPS_DIR = settings.data_dir / "face_crops"
 
 
 class FaceBox(BaseModel):
@@ -44,9 +49,9 @@ class DetectionResponse(BaseModel):
 @router.get("/status")
 async def detection_status():
     return {
-        "ready":           face_detector.is_ready,
+        "ready":            face_detector.is_ready,
         "persons_in_cache": face_matcher.persons_in_cache,
-        "timestamp":       datetime.now(timezone.utc).isoformat(),
+        "timestamp":        datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -58,8 +63,8 @@ async def detect_faces() -> DetectionResponse:
     frame = camera_service.snapshot(save=False)
     result = face_detector.detect(frame.array)
 
-    face_boxes = _recognize_faces(frame.array, result)
-    event = await save_detection_event(result)
+    recognitions, face_crops = _recognize_and_save_crops(frame.array, result)
+    event = await save_detection_event(result, face_crops=face_crops)
 
     return DetectionResponse(
         event_id=event.id,
@@ -68,7 +73,7 @@ async def detect_faces() -> DetectionResponse:
         inference_ms=result.inference_ms,
         frame_width=result.frame_width,
         frame_height=result.frame_height,
-        faces=face_boxes,
+        faces=recognitions,
     )
 
 
@@ -84,9 +89,9 @@ async def detection_snapshot() -> Response:
     frame = camera_service.snapshot(save=True)
     result = face_detector.detect(frame.array)
 
-    recognitions = _recognize_faces(frame.array, result)
+    recognitions, face_crops = _recognize_and_save_crops(frame.array, result)
     snapshot_path = _save_annotated(frame.array, result, recognitions)
-    event = await save_detection_event(result, snapshot_path=snapshot_path)
+    event = await save_detection_event(result, snapshot_path=snapshot_path, face_crops=face_crops)
 
     return Response(
         content=snapshot_path.read_bytes(),
@@ -112,35 +117,63 @@ def _check_ready() -> None:
 
 
 def _extract_roi(frame_rgb: np.ndarray, face: DetectedFace) -> np.ndarray:
-    """Recorta o rosto do frame com margem mínima para o reconhecimento."""
+    """Recorta o rosto com margem de 20% em cada lado."""
     h, w = frame_rgb.shape[:2]
-    pad = 10
-    x1 = max(0, face.x1 - pad)
-    y1 = max(0, face.y1 - pad)
-    x2 = min(w, face.x2 + pad)
-    y2 = min(h, face.y2 + pad)
+    fw, fh = face.x2 - face.x1, face.y2 - face.y1
+    pad_x, pad_y = int(fw * 0.2), int(fh * 0.2)
+    x1 = max(0, face.x1 - pad_x)
+    y1 = max(0, face.y1 - pad_y)
+    x2 = min(w, face.x2 + pad_x)
+    y2 = min(h, face.y2 + pad_y)
     return frame_rgb[y1:y2, x1:x2]
 
 
-def _recognize_faces(
+def _save_face_crop(roi_rgb: np.ndarray, event_ts: str, idx: int) -> Path:
+    """Salva o crop do rosto em disco e retorna o path."""
+    _CROPS_DIR.mkdir(parents=True, exist_ok=True)
+    path = _CROPS_DIR / f"crop_{event_ts}_f{idx}.jpg"
+    cv2.imwrite(str(path), cv2.cvtColor(roi_rgb, cv2.COLOR_RGB2BGR))
+    return path
+
+
+def _recognize_and_save_crops(
     frame_rgb: np.ndarray,
     result: DetectionResult,
-) -> list[FaceBox]:
-    """Executa reconhecimento para cada rosto detectado."""
+) -> tuple[list[FaceBox], list[dict]]:
+    """
+    Para cada rosto detectado:
+      1. Extrai ROI com margem
+      2. Salva crop em disco
+      3. Gera embedding (mesmo pipeline da referência)
+      4. Identifica contra o cache
+    Retorna (lista FaceBox, lista de dicts {crop_path, embedding}).
+    """
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
     boxes: list[FaceBox] = []
-    for face in result.faces:
-        base = face.to_dict()
+    crops: list[dict] = []
+
+    for i, face in enumerate(result.faces):
         roi = _extract_roi(frame_rgb, face)
+        crop_path = _save_face_crop(roi, ts, i)
+
+        # Embedding — mesmo processo usado no reconhecimento
+        emb = get_face_embedding(roi)
+        emb_bytes = emb.tobytes() if emb is not None else None
+
+        # Reconhecimento contra cache
         rec = face_matcher.identify(roi)
+
         boxes.append(FaceBox(
-            **base,
+            **face.to_dict(),
             matched=rec.matched,
             person_id=rec.person_id,
             person_name=rec.person_name,
             category=rec.category,
             recognition_confidence=rec.confidence,
         ))
-    return boxes
+        crops.append({"crop_path": str(crop_path), "embedding": emb_bytes})
+
+    return boxes, crops
 
 
 def _save_annotated(

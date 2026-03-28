@@ -15,7 +15,7 @@ import numpy as np
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.recognition.embeddings import get_face_embedding, cosine_distance
+from app.recognition.embeddings import get_face_embedding, get_embeddings_from_frame, cosine_distance
 from app.storage.db import get_session
 from app.storage.models import Person, PersonPhoto, PersonCategory
 from app.config import settings

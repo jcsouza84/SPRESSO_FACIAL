@@ -18,8 +18,14 @@ from app.logger import logger
 async def save_detection_event(
     result: DetectionResult,
     snapshot_path: Optional[Path] = None,
+    face_crops: Optional[list[dict]] = None,
 ) -> DetectionEvent:
-    """Persiste um evento de detecção e seus rostos no banco."""
+    """
+    Persiste um evento de detecção e seus rostos no banco.
+
+    face_crops: lista paralela a result.faces com dicts opcionais:
+        {"crop_path": str, "embedding": bytes}
+    """
     async with get_session() as session:
         event = DetectionEvent(
             timestamp=datetime.now(timezone.utc),
@@ -32,12 +38,15 @@ async def save_detection_event(
         session.add(event)
         await session.flush()
 
-        for face in result.faces:
+        for i, face in enumerate(result.faces):
+            crop_data = (face_crops[i] if face_crops and i < len(face_crops) else None) or {}
             session.add(DetectedFaceRecord(
                 event_id=event.id,
                 x1=face.x1, y1=face.y1,
                 x2=face.x2, y2=face.y2,
                 confidence=face.confidence,
+                crop_path=crop_data.get("crop_path"),
+                embedding=crop_data.get("embedding"),
             ))
 
         await session.commit()

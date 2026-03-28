@@ -122,7 +122,7 @@ class DetectionEvent(Base):
 
 class DetectedFaceRecord(Base):
     """
-    Coordenadas e confiança de cada rosto dentro de um evento.
+    Coordenadas, confiança e crop de cada rosto dentro de um evento.
     """
     __tablename__ = "detected_faces"
 
@@ -133,6 +133,8 @@ class DetectedFaceRecord(Base):
     x2:         Mapped[int]   = mapped_column(Integer, nullable=False)
     y2:         Mapped[int]   = mapped_column(Integer, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    crop_path:  Mapped[str | None] = mapped_column(String(512), nullable=True)
+    embedding:  Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
     event: Mapped["DetectionEvent"] = relationship("DetectionEvent", back_populates="faces")
 
@@ -144,4 +146,6 @@ class DetectedFaceRecord(Base):
             "width":      self.x2 - self.x1,
             "height":     self.y2 - self.y1,
             "confidence": round(self.confidence, 4),
+            "crop_path":  self.crop_path,
+            "has_embedding": self.embedding is not None,
         }

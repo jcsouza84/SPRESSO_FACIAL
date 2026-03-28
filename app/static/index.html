@@ -205,7 +205,23 @@
 
     <!-- ================================================ EVENTS -->
     <div class="page" id="page-events">
-      <h2 style="margin-bottom:20px;font-size:20px">Eventos de detecção</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 style="font-size:20px">Eventos de detecção</h2>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="chk-faces-only" onchange="loadEvents()" style="width:auto"/>
+          Só com rostos
+        </label>
+      </div>
+
+      <!-- Grade de crops do evento selecionado -->
+      <div class="card" id="faces-panel" style="display:none;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin:0" id="faces-panel-title">Rostos detectados</div>
+          <button class="btn btn-secondary btn-sm" onclick="closeFacesPanel()">✕ Fechar</button>
+        </div>
+        <div id="faces-grid" style="display:flex;flex-wrap:wrap;gap:12px"></div>
+      </div>
+
       <div class="card" style="padding:0;overflow:auto">
         <table>
           <thead>
@@ -214,7 +230,7 @@
               <th>Data / hora</th>
               <th>Rostos</th>
               <th>Inferência</th>
-              <th>Snapshot</th>
+              <th>Ação</th>
             </tr>
           </thead>
           <tbody id="events-tbody">
@@ -276,7 +292,60 @@
   </main>
 </div>
 
-<!-- ============================================================ MODAL ADD PERSON -->
+<!-- ============================================================ MODAL ASSIGN FACE -->
+<div class="modal-overlay" id="modal-assign-face">
+  <div class="modal">
+    <div class="modal-title">Atribuir rosto a uma pessoa</div>
+    <div id="assign-alert"></div>
+
+    <!-- Preview do crop -->
+    <div style="text-align:center;margin-bottom:16px">
+      <img id="assign-crop-preview" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:2px solid var(--accent)"/>
+    </div>
+
+    <!-- Tabs: nova pessoa / existente -->
+    <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <button id="tab-new"      class="btn btn-primary"    style="flex:1;border-radius:0;border:none" onclick="switchAssignTab('new')">Nova pessoa</button>
+      <button id="tab-existing" class="btn btn-secondary"  style="flex:1;border-radius:0;border:none" onclick="switchAssignTab('existing')">Pessoa existente</button>
+    </div>
+
+    <!-- Painel: nova pessoa -->
+    <div id="assign-panel-new">
+      <div class="form-group">
+        <label>Nome *</label>
+        <input id="assign-name" type="text" placeholder="Nome da pessoa"/>
+      </div>
+      <div class="form-group">
+        <label>Categoria *</label>
+        <select id="assign-category">
+          <option value="blacklist">🚫 Blacklist</option>
+          <option value="vip">⭐ VIP</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Observação</label>
+        <input id="assign-obs" type="text" placeholder="Opcional"/>
+      </div>
+    </div>
+
+    <!-- Painel: pessoa existente -->
+    <div id="assign-panel-existing" style="display:none">
+      <div class="form-group">
+        <label>Selecionar pessoa</label>
+        <select id="assign-person-select">
+          <option value="">Carregando...</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-assign-face')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="submitAssignFace()">✓ Atribuir</button>
+    </div>
+  </div>
+</div>
+
+
 <div class="modal-overlay" id="modal-add-person">
   <div class="modal">
     <div class="modal-title">Cadastrar pessoa</div>
@@ -586,9 +655,11 @@ async function capturePhoto() {
 
 async function loadEvents() {
   const tbody = document.getElementById('events-tbody');
+  const facesOnly = document.getElementById('chk-faces-only').checked;
   tbody.innerHTML = '<tr><td colspan="5" style="text-align:center"><span class="spin"></span></td></tr>';
   try {
-    const events = await fetch(API + '/events?limit=30').then(r => r.json());
+    const data = await fetch(API + `/events?limit=40&only_with_faces=${facesOnly}`).then(r => r.json());
+    const events = data.items || [];
     if (!events.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted)">Sem eventos ainda.</td></tr>';
       return;
@@ -596,16 +667,137 @@ async function loadEvents() {
     tbody.innerHTML = events.map(e => {
       const d = new Date(e.timestamp);
       const dt = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR');
+      const faceBadge = e.face_count > 0
+        ? `<span class="badge badge-green">${e.face_count} rosto(s)</span>`
+        : `<span class="badge badge-red">0</span>`;
+      const action = e.face_count > 0
+        ? `<button class="btn btn-secondary btn-sm" onclick="showFaces(${e.id}, '${dt}')">👁 Ver rostos</button>`
+        : `<span style="color:var(--muted)">—</span>`;
       return `<tr>
         <td style="color:var(--muted)">#${e.id}</td>
         <td>${dt}</td>
-        <td><span class="badge ${e.face_count > 0 ? 'badge-green' : 'badge-red'}">${e.face_count}</span></td>
+        <td>${faceBadge}</td>
         <td style="color:var(--muted)">${e.inference_ms?.toFixed(0)}ms</td>
-        <td>${e.snapshot_path ? '<span class="badge badge-blue">✓</span>' : '<span style="color:var(--muted)">—</span>'}</td>
+        <td>${action}</td>
       </tr>`;
     }).join('');
   } catch(ex) {
     tbody.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">${ex.message}</td></tr>`;
+  }
+}
+
+async function showFaces(eventId, label) {
+  const panel = document.getElementById('faces-panel');
+  const grid  = document.getElementById('faces-grid');
+  const title = document.getElementById('faces-panel-title');
+  title.textContent = `Rostos — Evento #${eventId} (${label})`;
+  grid.innerHTML = '<span class="spin"></span>';
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const ev = await fetch(API + `/events/${eventId}`).then(r => r.json());
+    if (!ev.faces || !ev.faces.length) {
+      grid.innerHTML = '<span style="color:var(--muted)">Nenhum rosto neste evento.</span>';
+      return;
+    }
+    grid.innerHTML = ev.faces.map(f => {
+      const hasCrop = !!f.crop_path;
+      const img = hasCrop
+        ? `<img src="${API}/events/${eventId}/faces/${f.id}/crop" style="width:100px;height:100px;object-fit:cover;border-radius:6px;border:2px solid var(--border)"/>`
+        : `<div style="width:100px;height:100px;background:var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:28px">👤</div>`;
+      const btn = hasCrop && f.has_embedding
+        ? `<button class="btn btn-danger btn-sm" style="margin-top:6px;width:100%" onclick="openAssign(${eventId}, ${f.id})">+ Atribuir</button>`
+        : `<div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">Sem crop</div>`;
+      return `<div style="display:flex;flex-direction:column;align-items:center">
+        ${img}
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${(f.confidence*100).toFixed(0)}% conf.</div>
+        ${btn}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    grid.innerHTML = `<span style="color:var(--danger)">${e.message}</span>`;
+  }
+}
+
+function closeFacesPanel() {
+  document.getElementById('faces-panel').style.display = 'none';
+}
+
+// ============================================================ ASSIGN FACE
+
+let _assignEventId = null;
+let _assignFaceId  = null;
+
+async function openAssign(eventId, faceId) {
+  _assignEventId = eventId;
+  _assignFaceId  = faceId;
+
+  // Preview do crop
+  document.getElementById('assign-crop-preview').src =
+    `${API}/events/${eventId}/faces/${faceId}/crop?t=${Date.now()}`;
+  document.getElementById('assign-alert').innerHTML = '';
+  document.getElementById('assign-name').value = '';
+  document.getElementById('assign-obs').value = '';
+  switchAssignTab('new');
+
+  // Carrega lista de pessoas existentes
+  try {
+    const persons = await fetch(API + '/persons?active_only=false&limit=200').then(r => r.json());
+    const sel = document.getElementById('assign-person-select');
+    sel.innerHTML = persons.map(p =>
+      `<option value="${p.id}">${esc(p.name)} (${p.category})</option>`
+    ).join('') || '<option value="">Nenhuma pessoa cadastrada</option>';
+  } catch(_) {}
+
+  openModal('modal-assign-face');
+}
+
+function switchAssignTab(tab) {
+  document.getElementById('assign-panel-new').style.display      = tab === 'new'      ? 'block' : 'none';
+  document.getElementById('assign-panel-existing').style.display = tab === 'existing' ? 'block' : 'none';
+  document.getElementById('tab-new').className      = 'btn btn-sm ' + (tab === 'new'      ? 'btn-primary' : 'btn-secondary');
+  document.getElementById('tab-existing').className = 'btn btn-sm ' + (tab === 'existing' ? 'btn-primary' : 'btn-secondary');
+}
+
+async function submitAssignFace() {
+  if (!_assignEventId || !_assignFaceId) return;
+
+  const isNew = document.getElementById('assign-panel-new').style.display !== 'none';
+  let body = {};
+
+  if (isNew) {
+    const name = document.getElementById('assign-name').value.trim();
+    if (!name) { showModalAlert('assign-alert', 'Nome obrigatório.', 'error'); return; }
+    body = {
+      name,
+      category:    document.getElementById('assign-category').value,
+      observation: document.getElementById('assign-obs').value.trim() || null,
+    };
+  } else {
+    const pid = parseInt(document.getElementById('assign-person-select').value);
+    if (!pid) { showModalAlert('assign-alert', 'Selecione uma pessoa.', 'error'); return; }
+    body = { person_id: pid };
+  }
+
+  try {
+    const r = await fetch(API + `/events/${_assignEventId}/faces/${_assignFaceId}/assign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+
+    showModalAlert('assign-alert',
+      `✅ <strong>${esc(data.person_name)}</strong> cadastrado(a)! Cache: ${data.persons_in_cache} pessoa(s).`,
+      'success'
+    );
+    getStatus();
+    loadPersons();
+    setTimeout(() => closeModal('modal-assign-face'), 1800);
+  } catch(e) {
+    showModalAlert('assign-alert', 'Erro: ' + e.message, 'error');
   }
 }
 

@@ -227,3 +227,59 @@ def _delete_photo_file(path: Path) -> None:
             path.unlink()
     except Exception as e:
         logger.warning("Não foi possível remover arquivo {}: {}", path, e)
+
+
+async def add_photo_from_crop(
+    person_id: int,
+    crop_source_path: Path,
+    embedding_bytes: bytes,
+) -> PersonPhoto:
+    """
+    Adiciona uma foto de referência a partir de um crop já detectado pela câmera.
+    Copia o arquivo e reutiliza o embedding já calculado no pipeline ao vivo —
+    garantindo que referência e detecção usam exatamente o mesmo processo.
+    """
+    import shutil
+
+    async with get_session() as session:
+        stmt = (
+            select(Person)
+            .options(selectinload(Person.photos))
+            .where(Person.id == person_id)
+        )
+        result = await session.execute(stmt)
+        person = result.scalar_one_or_none()
+
+        if not person:
+            raise ValueError(f"Pessoa {person_id} não encontrada")
+        if len(person.photos) >= MAX_PHOTOS_PER_PERSON:
+            raise ValueError(
+                f"Limite de {MAX_PHOTOS_PER_PERSON} fotos atingido para a pessoa {person_id}"
+            )
+
+        person_dir = PHOTOS_DIR / str(person_id)
+        person_dir.mkdir(parents=True, exist_ok=True)
+
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+        dest = person_dir / f"photo_{ts}.jpg"
+        shutil.copy2(str(crop_source_path), str(dest))
+
+        photo = PersonPhoto(
+            person_id=person_id,
+            path=str(dest),
+            embedding=embedding_bytes,
+            created_at=_now(),
+        )
+        session.add(photo)
+        await session.commit()
+        photo_id = photo.id
+
+    async with get_session() as session2:
+        result2 = await session2.execute(select(PersonPhoto).where(PersonPhoto.id == photo_id))
+        loaded = result2.scalar_one()
+
+    logger.info(
+        "Foto de crop adicionada: person_id={} photo_id={} origem={}",
+        person_id, loaded.id, crop_source_path.name,
+    )
+    return loaded
