@@ -150,6 +150,10 @@ def _iou(b1: list[int], b2: np.ndarray) -> float:
     return inter / (a1 + a2 - inter + 1e-6)
 
 
+# Rostos menores que este limiar (distância) usam upscale para melhor alinhamento
+_SMALL_FACE_PX = 90
+
+
 def _recognize_and_save_crops(
     frame_rgb: np.ndarray,
     result: DetectionResult,
@@ -160,7 +164,10 @@ def _recognize_and_save_crops(
          → bboxes alinhados + embeddings para todos os rostos
       2. Associa cada detecção SCRFD/Hailo com a detecção InsightFace
          mais próxima (IoU ≥ 0.3)
-      3. Usa o embedding já alinhado para reconhecimento (sem re-detectar)
+      3a. Rostos grandes (≥ _SMALL_FACE_PX): usa embedding do frame completo
+          (alinhamento preciso, rápido)
+      3b. Rostos pequenos / longe (< _SMALL_FACE_PX): usa crop com upscale
+          antes do alinhamento para maximizar qualidade dos keypoints
       4. Fallback para ROI crop se InsightFace não encontrou o rosto
 
     Retorna (lista FaceBox, lista de dicts {crop_path, embedding}).
@@ -174,6 +181,7 @@ def _recognize_and_save_crops(
 
     for i, face in enumerate(result.faces):
         scrfd_box = [face.x1, face.y1, face.x2, face.y2]
+        face_is_small = face.width < _SMALL_FACE_PX or face.height < _SMALL_FACE_PX
 
         # Associa com a detecção InsightFace pelo maior IoU
         best_idx, best_iou = -1, 0.0
@@ -186,13 +194,15 @@ def _recognize_and_save_crops(
         roi = _extract_roi(frame_rgb, face)
         crop_path = _save_face_crop(roi, ts, i)
 
-        if best_idx >= 0 and best_iou >= 0.3:
-            # Caminho ideal: embedding alinhado da passagem única
+        if best_idx >= 0 and best_iou >= 0.3 and not face_is_small:
+            # Rosto grande e próximo: embedding do frame completo (mais rápido)
             _, _, embedding = frame_embeddings[best_idx]
             emb_bytes = embedding.tobytes()
             rec = face_matcher.identify_from_embedding(embedding)
         else:
-            # Fallback: InsightFace não encontrou o rosto no frame completo
+            # Rosto pequeno/distante ou não encontrado:
+            # get_face_embedding faz upscale do crop para ≥ 160px antes de
+            # realinhar, gerando keypoints muito mais precisos
             embedding = get_face_embedding(roi)
             emb_bytes = embedding.tobytes() if embedding is not None else None
             rec = face_matcher.identify_from_embedding(embedding) if embedding is not None else UNKNOWN
