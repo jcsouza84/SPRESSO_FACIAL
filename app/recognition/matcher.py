@@ -143,13 +143,16 @@ class FaceMatcher:
                     best_person_id = person_id
 
         threshold = settings.recognition_threshold
+        person_name = self._persons[best_person_id].name if best_person_id else "?"
+        logger.debug(
+            "Reconhecimento: melhor={} dist={:.4f} threshold={:.4f} → {}",
+            person_name, best_distance, threshold,
+            "MATCH" if best_distance <= threshold else "DESCONHECIDO",
+        )
+
         if best_distance <= threshold and best_person_id is not None:
             person = self._persons[best_person_id]
             confidence = max(0.0, (1.0 - best_distance / threshold)) * 100
-            logger.debug(
-                "Identificado: {} (dist={:.4f} threshold={:.4f} conf={:.1f}%)",
-                person.name, best_distance, threshold, confidence,
-            )
             return RecognitionResult(
                 matched=True,
                 person_id=person.id,

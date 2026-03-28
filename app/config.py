@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     # Reconhecimento facial
     recognition_threshold: float = Field(default=0.62)
+    max_photos_per_person: int = Field(default=20)
 
     # Armazenamento
     data_dir: Path = Field(default=Path("data"))

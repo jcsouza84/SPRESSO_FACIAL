@@ -14,7 +14,7 @@ from app.recognition.embeddings import get_embedding_from_image_bytes
 from app.config import settings
 from app.logger import logger
 
-MAX_PHOTOS_PER_PERSON = 5
+MAX_PHOTOS_PER_PERSON: int = settings.max_photos_per_person
 PHOTOS_DIR = settings.data_dir / "persons"
 
 

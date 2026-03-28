@@ -197,14 +197,14 @@ def _recognize_and_save_crops(
 
         if best_idx >= 0 and best_iou >= 0.3 and not face_is_small:
             # Rosto grande e próximo: embedding do frame completo (mais rápido)
-            logger.info("Rosto #{}: {}x{}px — caminho FRAME (iou={:.2f})", i, face.width, face.height, best_iou)
+            logger.debug("Rosto #{}: {}x{}px — caminho FRAME (iou={:.2f})", i, face.width, face.height, best_iou)
             _, _, embedding = frame_embeddings[best_idx]
             emb_bytes = embedding.tobytes()
             rec = face_matcher.identify_from_embedding(embedding)
         else:
             # Rosto pequeno/distante ou não encontrado:
             motivo = f"pequeno({face.width}x{face.height}px)" if face_is_small else f"sem match InsightFace(iou={best_iou:.2f})"
-            logger.info("Rosto #{}: {}x{}px — caminho CROP+UPSCALE ({})", i, face.width, face.height, motivo)
+            logger.debug("Rosto #{}: {}x{}px — caminho CROP+UPSCALE ({})", i, face.width, face.height, motivo)
             embedding = get_face_embedding(roi)
             emb_bytes = embedding.tobytes() if embedding is not None else None
             rec = face_matcher.identify_from_embedding(embedding) if embedding is not None else UNKNOWN
