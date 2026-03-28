@@ -178,7 +178,12 @@ async def add_photo(person_id: int, image_bytes: bytes, extension: str = "jpg") 
             embedding_bytes = emb.tobytes()
             logger.debug("Embedding gerado para person_id={}", person_id)
         else:
-            logger.warning("Não foi possível gerar embedding para person_id={}", person_id)
+            # Remove o arquivo pois o embedding falhou (rosto não detectado ou muito pequeno)
+            path.unlink(missing_ok=True)
+            raise ValueError(
+                "Não foi possível detectar um rosto válido na imagem. "
+                "Use uma foto frontal, bem iluminada e com o rosto ocupando boa parte do frame."
+            )
 
         photo = PersonPhoto(
             person_id=person_id,
