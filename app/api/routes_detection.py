@@ -14,6 +14,7 @@ from app.recognition.matcher import face_matcher, UNKNOWN
 from app.recognition.embeddings import get_embeddings_from_frame, get_face_embedding
 from app.services.event_service import save_detection_event
 from app.config import settings
+from app.logger import logger
 
 router = APIRouter(prefix="/detection", tags=["detection"])
 
@@ -196,13 +197,14 @@ def _recognize_and_save_crops(
 
         if best_idx >= 0 and best_iou >= 0.3 and not face_is_small:
             # Rosto grande e próximo: embedding do frame completo (mais rápido)
+            logger.info("Rosto #{}: {}x{}px — caminho FRAME (iou={:.2f})", i, face.width, face.height, best_iou)
             _, _, embedding = frame_embeddings[best_idx]
             emb_bytes = embedding.tobytes()
             rec = face_matcher.identify_from_embedding(embedding)
         else:
             # Rosto pequeno/distante ou não encontrado:
-            # get_face_embedding faz upscale do crop para ≥ 160px antes de
-            # realinhar, gerando keypoints muito mais precisos
+            motivo = f"pequeno({face.width}x{face.height}px)" if face_is_small else f"sem match InsightFace(iou={best_iou:.2f})"
+            logger.info("Rosto #{}: {}x{}px — caminho CROP+UPSCALE ({})", i, face.width, face.height, motivo)
             embedding = get_face_embedding(roi)
             emb_bytes = embedding.tobytes() if embedding is not None else None
             rec = face_matcher.identify_from_embedding(embedding) if embedding is not None else UNKNOWN
