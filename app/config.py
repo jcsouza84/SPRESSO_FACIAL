@@ -27,6 +27,27 @@ class Settings(BaseSettings):
     recognition_threshold: float = Field(default=0.62)
     max_photos_per_person: int = Field(default=20)
 
+    # Fase 9 — regras de negócio
+    alert_cooldown_seconds: int = Field(default=300)
+    event_dedup_seconds: int = Field(default=30)
+    app_timezone: str = Field(default="America/Maceio")
+
+    # Sprint B — worker de detecção automática
+    detection_auto: bool = Field(default=False)
+    detection_fps: float = Field(default=1.0)
+
+    # Sprint C — Fase 10 — câmera RTSP (IP)
+    camera_rtsp_url: str = Field(default="")
+    camera_rtsp_label: str = Field(default="Câmera IP")
+    camera_rtsp_id: str = Field(default="ip1")
+
+    # WhatsApp (Evolution API / Z-API compatível) — desligado por padrão
+    whatsapp_enabled: bool = Field(default=False)
+    whatsapp_api_url: str = Field(default="")
+    whatsapp_api_key: str = Field(default="")
+    whatsapp_instance: str = Field(default="default")
+    whatsapp_notify_number: str = Field(default="")
+
     # Armazenamento
     data_dir: Path = Field(default=Path("data"))
     logs_dir: Path = Field(default=Path("logs"))

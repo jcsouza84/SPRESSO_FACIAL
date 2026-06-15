@@ -4,443 +4,851 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>SPRESSO FACIAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&family=Geist:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
 <style>
-  :root {
-    --bg: #0a0c10;
-    --surface: #12151d;
-    --border: #1e2435;
-    --accent: #00e5ff;
-    --accent2: #7c4dff;
-    --danger: #ff3d3d;
-    --success: #00e676;
-    --warn: #ffab00;
-    --text: #dde3f0;
-    --muted: #5a6580;
-    --font: 'Inter', system-ui, sans-serif;
-    --radius: 10px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
-
-  /* Layout */
-  .shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
-  .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; display: flex; flex-direction: column; gap: 4px; }
-  .logo { padding: 0 20px 24px; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
-  .logo span { color: var(--muted); font-weight: 400; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; font-size: 13.5px; color: var(--muted); border-radius: 0; transition: all .15s; border-left: 3px solid transparent; }
-  .nav-item:hover { color: var(--text); background: rgba(255,255,255,.03); }
-  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,255,.05); }
-  .nav-icon { width: 18px; text-align: center; }
-  .main { padding: 32px; overflow-y: auto; }
-  .page { display: none; }
-  .page.active { display: block; }
-
-  /* Cards */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
-  .card-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 14px; }
-
-  /* Grid */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  @media(max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .shell { grid-template-columns: 1fr; } .sidebar { flex-direction: row; flex-wrap: wrap; padding: 12px; } }
-
-  /* Stat */
-  .stat { display: flex; flex-direction: column; gap: 4px; }
-  .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
-  .stat-label { font-size: 12px; color: var(--muted); }
-
-  /* Snapshot */
-  #snapshot-img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; background: #0a0c10; min-height: 200px; }
-  .snapshot-meta { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
-  .badge { font-size: 11px; padding: 3px 10px; border-radius: 100px; font-weight: 600; }
-  .badge-green { background: rgba(0,230,118,.12); color: var(--success); }
-  .badge-red { background: rgba(255,61,61,.12); color: var(--danger); }
-  .badge-blue { background: rgba(0,229,255,.1); color: var(--accent); }
-  .badge-purple { background: rgba(124,77,255,.12); color: var(--accent2); }
-  .badge-warn { background: rgba(255,171,0,.1); color: var(--warn); }
-
-  /* Buttons */
-  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border: none; border-radius: var(--radius); font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
-  .btn:disabled { opacity: .4; cursor: not-allowed; }
-  .btn-primary { background: var(--accent); color: #000; }
-  .btn-secondary { background: rgba(255,255,255,.07); color: var(--text); border: 1px solid var(--border); }
-  .btn-danger { background: var(--danger); color: #fff; }
-  .btn-sm { padding: 5px 12px; font-size: 12px; }
-  .btn:not(:disabled):hover { opacity: .85; }
-  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-
-  /* Forms */
-  .form-group { margin-bottom: 14px; }
-  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
-  input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: border-color .15s; }
-  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-  textarea { resize: vertical; min-height: 70px; }
-
-  /* Tables */
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--border); }
-  td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.03); vertical-align: middle; }
-  tr:hover td { background: rgba(255,255,255,.015); }
-
-  /* Persons list */
-  .person-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-  .person-card:last-child { border-bottom: none; }
-  .person-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--border); }
-  .person-avatar-ph { width: 42px; height: 42px; border-radius: 50%; background: rgba(0,229,255,.1); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--accent); flex-shrink: 0; }
-  .person-name { font-weight: 600; font-size: 14px; }
-  .person-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .person-actions { margin-left: auto; display: flex; gap: 6px; }
-
-  /* Logs */
-  .log-line { font-size: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.03); display: flex; gap: 12px; }
-  .log-time { color: var(--muted); flex-shrink: 0; }
-  .log-count { color: var(--accent); font-weight: 700; flex-shrink: 0; }
-
-  /* Alert */
-  .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; }
-  .alert-info { background: rgba(0,229,255,.08); border: 1px solid rgba(0,229,255,.2); color: var(--accent); }
-  .alert-success { background: rgba(0,230,118,.08); border: 1px solid rgba(0,230,118,.2); color: var(--success); }
-  .alert-error { background: rgba(255,61,61,.08); border: 1px solid rgba(255,61,61,.2); color: var(--danger); }
-
-  /* Modal */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
-  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
-  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-  .modal-close { position: absolute; top: 16px; right: 16px; cursor: pointer; }
-
-  /* Upload zone */
-  .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 24px; text-align: center; cursor: pointer; transition: border-color .15s; }
-  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); }
-  .upload-zone input { display: none; }
-  .upload-preview { width: 100%; max-height: 200px; object-fit: contain; margin-top: 10px; border-radius: 8px; display: none; }
-
-  /* Pulse dot */
-  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-  /* Spin */
-  .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,229,255,.3); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  input[type=range] { flex: 1; accent-color: var(--accent); }
-  .threshold-val { font-weight: 700; color: var(--accent); min-width: 36px; }
-
-  /* Threshold slider */
-  .threshold-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-
-  /* Match banner */
-  .match-banner { position: absolute; bottom: 0; left: 0; right: 0; padding: 10px 16px;
-    background: linear-gradient(transparent, rgba(0,230,118,.85));
-    display: flex; align-items: center; gap: 10px; opacity: 0;
-    transition: opacity .3s; pointer-events: none; }
-  .match-banner.show { opacity: 1; }
-  .match-banner .match-icon { font-size: 22px; }
-  .match-banner .match-name { font-weight: 700; font-size: 15px; color: #fff; }
-  .match-banner .match-cat  { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
-  .match-banner .match-cat.blacklist { background: rgba(255,61,61,.7); color: #fff; }
-  .match-banner .match-cat.vip       { background: rgba(124,77,255,.7); color: #fff; }
-  .match-banner .match-conf { margin-left: auto; font-size: 12px; color: rgba(255,255,255,.8); }
-
-  /* Glow verde na borda da câmera */
-  .snapshot-wrapper { position: relative; border-radius: 8px; overflow: hidden; transition: box-shadow .3s; }
-  .snapshot-wrapper.matched { box-shadow: 0 0 0 3px var(--success), 0 0 24px rgba(0,230,118,.4); }
+/* ====== TOKENS ====== */
+:root {
+  --bg:#111318; --surface:#1e2024; --surface-low:#1a1c20;
+  --surface-high:#282a2e; --surface-highest:#333539; --border:#3b494c;
+  --accent:#00e5ff; --accent-dim:#00daf3; --accent2:#cdbdff;
+  --danger:#ffb4ab; --danger-bg:#93000a; --success:#00e475;
+  --warn:#ffab00; --text:#e2e2e8; --muted:#849396;
+  --font-title:'Hanken Grotesk',system-ui,sans-serif;
+  --font-body:'Geist',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --r:8px; --r-lg:12px; --sidebar:220px; --topbar:64px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;overflow:hidden}
+/* ====== LAYOUT ====== */
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar);z-index:50;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.top-bar{position:fixed;left:var(--sidebar);top:0;right:0;height:var(--topbar);z-index:40;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+.main{margin-left:var(--sidebar);margin-top:var(--topbar);padding:24px;height:calc(100vh - var(--topbar) - 40px);overflow-y:auto}
+/* ====== SIDEBAR ====== */
+.sb-logo{padding:20px 16px;border-bottom:1px solid var(--border)}
+.sb-logo h1{font-family:var(--font-title);font-size:17px;font-weight:700;color:var(--accent)}
+.sb-logo p{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-top:3px}
+.sb-nav{flex:1;padding:8px 0}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;font-family:var(--font-title);font-size:14px;font-weight:600;color:var(--muted);border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:var(--surface-high)}
+.nav-item .msi{font-size:20px;font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24}
+.sb-footer{padding:14px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sb-avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#000;font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:var(--font-mono)}
+.sb-footer-info p:first-child{font-family:var(--font-mono);font-size:11px}
+.sb-footer-info p:last-child{font-size:10px;color:var(--success)}
+/* ====== TOP BAR ====== */
+.tb-left{display:flex;align-items:center;gap:12px}
+.tb-title{font-family:var(--font-title);font-size:15px;font-weight:600}
+.tb-div{width:1px;height:16px;background:var(--border)}
+.tb-clock{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.tb-right{display:flex;align-items:center;gap:10px}
+.tb-icon{font-size:20px;cursor:pointer;font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;color:var(--accent)}
+.tb-icon.dim{color:var(--muted)}
+/* ====== CARDS ====== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:12px}
+.card-title{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+/* ====== BADGES ====== */
+.badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700}
+.badge-vip{background:rgba(205,189,255,.15);color:var(--accent2)}
+.badge-bl{background:rgba(147,0,10,.4);color:var(--danger)}
+.badge-ok{background:rgba(0,228,117,.12);color:var(--success)}
+.badge-cyan{background:rgba(0,229,255,.1);color:var(--accent)}
+.badge-warn{background:rgba(255,171,0,.1);color:var(--warn)}
+/* ====== BUTTONS ====== */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border:none;border-radius:var(--r);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;font-family:var(--font-body)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:not(:disabled):hover{filter:brightness(1.1)}
+.btn-primary{background:var(--accent);color:#000}
+.btn-secondary{background:var(--surface-high);color:var(--text);border:1px solid var(--border)}
+.btn-danger{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-bg)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+/* ====== FORMS ====== */
+.form-group{margin-bottom:13px}
+label{display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+input,select,textarea{width:100%;background:var(--surface-high);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:var(--r);font-size:13px;font-family:var(--font-body);outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,229,255,.12)}
+textarea{resize:vertical;min-height:65px}
+/* ====== TABLE ====== */
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:rgba(255,255,255,.02)}
+th{text-align:left;padding:10px 14px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.02)}
+/* ====== MONITOR ====== */
+.monitor-grid{display:grid;grid-template-columns:1fr 280px;gap:16px;height:calc(100vh - var(--topbar) - 80px)}
+.feed-col{display:flex;flex-direction:column;gap:10px;min-height:0}
+.panel-col{display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto}
+.feed-wrap{position:relative;border-radius:var(--r-lg);overflow:hidden;background:#000;aspect-ratio:16/9;width:100%}
+.feed-wrap img{width:100%;height:100%;object-fit:cover;display:block;background:#000;min-height:180px}
+.feed-label{position:absolute;top:10px;left:10px;display:flex;gap:6px}
+.feed-badge{background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.15);border-radius:4px;padding:3px 8px;font-family:var(--font-mono);font-size:10px}
+.feed-badge.live{color:var(--accent);border-color:rgba(0,229,255,.3)}
+.feed-fps{color:var(--muted)}
+.feed-scan{position:absolute;inset:0;border:3px solid rgba(0,229,255,.5);border-radius:var(--r-lg);pointer-events:none;display:none}
+.feed-scan.on{display:block;animation:scanAnim .6s ease-in-out infinite alternate}
+@keyframes scanAnim{from{border-color:rgba(0,229,255,.2)}to{border-color:rgba(0,229,255,.8)}}
+.match-banner{position:absolute;bottom:0;left:0;right:0;padding:10px 14px;background:linear-gradient(transparent,rgba(0,228,117,.85));display:flex;align-items:center;gap:10px;opacity:0;transition:opacity .3s;pointer-events:none}
+.match-banner.show{opacity:1}
+.match-banner .mn{font-family:var(--font-title);font-weight:700;font-size:15px;color:#fff}
+.match-banner .mc{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700}
+.mc.blacklist{background:rgba(255,180,171,.3);color:var(--danger)}
+.mc.vip{background:rgba(205,189,255,.3);color:var(--accent2)}
+.match-banner .mconf{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:rgba(255,255,255,.8)}
+.feed-wrap.f-blacklist{animation:redPulse 1s ease-in-out infinite alternate}
+.feed-wrap.f-vip{box-shadow:0 0 0 3px var(--accent2),0 0 24px rgba(205,189,255,.3)}
+@keyframes redPulse{from{box-shadow:0 0 0 3px var(--danger),0 0 20px rgba(255,180,171,.3)}to{box-shadow:0 0 0 4px var(--danger),0 0 36px rgba(255,180,171,.6)}}
+/* Status card */
+.status-card{border-radius:var(--r-lg);padding:14px;border:1px solid var(--border);background:var(--surface);transition:all .3s}
+.status-card.s-vip{border-color:var(--success);background:rgba(0,228,117,.06)}
+.status-card.s-bl{border-color:var(--danger);background:rgba(147,0,10,.25);animation:sPulse 1.5s ease-in-out infinite alternate}
+.status-card.s-unknown{border-color:var(--accent);background:rgba(0,229,255,.05)}
+@keyframes sPulse{from{background:rgba(147,0,10,.15)}to{background:rgba(147,0,10,.35)}}
+.status-dot{width:10px;height:10px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .3s}
+.status-dot.d-live{background:var(--success);animation:dotP 1.5s infinite}
+.status-dot.d-vip{background:var(--success)}
+.status-dot.d-bl{background:var(--danger);animation:dotP .8s infinite}
+.status-dot.d-unknown{background:var(--accent)}
+@keyframes dotP{0%,100%{opacity:1}50%{opacity:.2}}
+.status-text{font-family:var(--font-title);font-weight:600;font-size:13px}
+.detect-detail{display:flex;gap:10px;padding:10px;background:var(--surface-low);border-radius:var(--r);border:1px solid var(--border);margin-top:10px}
+.detect-crop-big{width:64px;height:64px;border-radius:var(--r);object-fit:cover;border:2px solid var(--border);flex-shrink:0;background:var(--surface-high)}
+/* History */
+.history-item{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:var(--r);cursor:pointer;transition:background .1s}
+.history-item:hover{background:var(--surface-high)}
+.history-crop{width:38px;height:38px;border-radius:var(--r);object-fit:cover;border:1px solid var(--border);flex-shrink:0;background:var(--surface-high)}
+.history-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
+.history-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+/* ====== PERSONS ====== */
+.filter-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.pills{display:flex;gap:6px}
+.pill{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all .15s;font-family:var(--font-body)}
+.pill.active{background:var(--accent);color:#000;border-color:var(--accent)}
+.person-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.person-card-v2{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;cursor:pointer;transition:all .15s}
+.person-card-v2:hover{border-color:var(--accent);background:var(--surface-high)}
+.pc-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
+.person-photo-lg{width:54px;height:54px;border-radius:var(--r);object-fit:cover;background:var(--surface-high);flex-shrink:0;border:1px solid var(--border)}
+.person-photo-ph{width:54px;height:54px;border-radius:var(--r);background:var(--surface-high);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px;flex-shrink:0}
+.person-name-v2{font-family:var(--font-title);font-weight:600;font-size:13px;margin-bottom:2px}
+.person-pid{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.person-coverage{font-size:11px;color:var(--muted);margin-top:5px}
+.person-coverage.cov-ok{color:var(--success)}
+.person-coverage.cov-warn{color:var(--warn)}
+.pc-actions{display:flex;gap:4px;margin-top:8px}
+.pc-actions .btn{flex:1;justify-content:center;font-size:11px;padding:4px 8px}
+/* ====== EVENTS ====== */
+.event-crops{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.ecw{position:relative;display:inline-block}
+.event-crop{width:60px;height:60px;object-fit:cover;border-radius:var(--r);border:2px solid var(--border);display:block}
+.event-crop.c-unknown{border-color:var(--border)}
+.event-crop.c-vip{border-color:var(--success)}
+.event-crop.c-blacklist{border-color:var(--danger)}
+.event-crop.c-ph{background:var(--surface-high);border-color:var(--border)}
+.crop-badge{position:absolute;bottom:0;left:0;right:0;text-align:center;font-family:var(--font-mono);font-size:8px;font-weight:700;padding:1px 2px;background:rgba(0,0,0,.75);border-radius:0 0 6px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crop-badge.cb-bl{color:var(--danger)}
+.crop-badge.cb-vip{color:var(--success)}
+.crop-badge.cb-ok{color:var(--accent)}
+.crop-btn{position:absolute;top:2px;right:2px;padding:1px 4px;font-size:10px;font-weight:700;border-radius:3px;background:var(--accent);color:#000;border:none;cursor:pointer;line-height:1.4}
+.ev-name{font-weight:600;font-size:12px}
+.ev-name.bl{color:var(--danger)}
+.ev-name.uk{color:var(--muted)}
+.ev-sub{font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-top:1px}
+/* ====== UPLOAD ====== */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--r-lg);padding:22px;text-align:center;cursor:pointer;transition:border-color .15s}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--accent)}
+.upload-zone input{display:none}
+.upload-preview{width:100%;max-height:180px;object-fit:contain;margin-top:10px;border-radius:var(--r);display:none}
+/* ====== PHOTO TABS ====== */
+.photo-source-tabs{display:flex;gap:6px;margin-bottom:12px}
+.photo-source-tab{flex:1;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;font-family:var(--font-body)}
+.photo-source-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.08)}
+.photo-source-panel{display:none}
+.photo-source-panel.active{display:block}
+.cam-preview-box{position:relative;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:#000;min-height:180px;display:flex;align-items:center;justify-content:center}
+.cam-preview-box img{width:100%;object-fit:contain;display:block}
+.cam-preview-status{position:absolute;bottom:6px;left:6px;right:6px;display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-radius:6px;background:rgba(0,0,0,.7);font-family:var(--font-mono);font-size:10px;color:#ccc}
+/* ====== PHOTO GRID ====== */
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.photo-thumb{position:relative;aspect-ratio:1}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;border-radius:var(--r);border:2px solid var(--border);display:block}
+.embed-badge{position:absolute;bottom:3px;right:3px;font-family:var(--font-mono);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px}
+.embed-badge.ok{background:rgba(0,228,117,.85);color:#000}
+.embed-badge.no{background:rgba(255,171,0,.85);color:#000}
+.photo-thumb .btn-del{position:absolute;top:3px;right:3px;padding:2px 5px;font-size:10px}
+/* ====== MODALS ====== */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);z-index:100;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto}
+.modal-wide{max-width:660px}
+.modal-header{padding:20px 20px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.modal-title{font-family:var(--font-title);font-size:16px;font-weight:700}
+.modal-close{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:22px;padding:2px;line-height:1;font-family:var(--font-mono)}
+.modal-body{padding:0 20px}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px 20px}
+.modal-alert{margin:0 20px 10px}
+.assign-tabs{display:flex;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
+.assign-tab{flex:1;padding:8px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;background:transparent;border:none;color:var(--muted);transition:all .15s;font-family:var(--font-body)}
+.assign-tab.active{background:var(--accent);color:#000}
+/* ====== BLACKLIST OVERLAY ====== */
+.blacklist-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(80,0,0,.8);align-items:center;justify-content:center;padding:24px}
+.blacklist-overlay.show{display:flex;animation:blA .9s ease-in-out infinite alternate}
+@keyframes blA{from{background:rgba(80,0,0,.75)}to{background:rgba(130,0,0,.9)}}
+.blacklist-card{background:var(--surface);border:2px solid var(--danger);border-radius:16px;padding:28px;max-width:400px;width:100%;text-align:center;box-shadow:0 0 40px rgba(255,180,171,.3)}
+.blacklist-card h3{color:var(--danger);font-family:var(--font-title);font-size:20px;margin-bottom:8px}
+.bl-photo{width:120px;height:120px;object-fit:cover;border-radius:var(--r-lg);border:2px solid var(--danger);margin:12px auto;display:block}
+/* ====== TOAST ====== */
+.toast{position:fixed;bottom:56px;right:20px;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 16px;display:flex;align-items:center;gap:12px;max-width:300px;box-shadow:0 8px 32px rgba(0,0,0,.5);transform:translateY(16px);opacity:0;transition:all .3s;pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1;pointer-events:auto}
+.toast-icon-wrap{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.toast-title{font-family:var(--font-title);font-weight:700;font-size:12px}
+.toast-msg{font-size:11px;color:var(--muted);margin-top:2px}
+/* ====== FOOTER ====== */
+.global-footer{position:fixed;bottom:0;left:0;right:0;height:40px;background:rgba(17,19,24,.92);backdrop-filter:blur(8px);border-top:1px solid var(--border);z-index:60;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-family:var(--font-mono);font-size:10px}
+.footer-l{color:var(--muted)}
+.footer-r{display:flex;align-items:center;gap:6px;color:var(--success)}
+.footer-dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+/* ====== UTILS ====== */
+.page{display:none}
+.page.active{display:block}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(0,229,255,.2);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;animation:dotP 1.5s infinite}
+input[type=range]{flex:1;accent-color:var(--accent)}
+.threshold-row{display:flex;align-items:center;gap:12px;margin-top:8px}
+.threshold-val{font-weight:700;color:var(--accent);min-width:36px;font-family:var(--font-mono);font-size:14px}
+.alert{padding:10px 14px;border-radius:var(--r);font-size:12px;margin-bottom:10px}
+.alert-info{background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);color:var(--accent)}
+.alert-success{background:rgba(0,228,117,.08);border:1px solid rgba(0,228,117,.2);color:var(--success)}
+.alert-error{background:rgba(255,180,171,.08);border:1px solid rgba(147,0,10,.4);color:var(--danger)}
+.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.metric-card{background:var(--surface-low);border:1px solid var(--border);border-radius:var(--r);padding:12px}
+.metric-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.metric-value{font-family:var(--font-mono);font-size:18px;font-weight:700}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
 </style>
 </head>
 <body>
 
-<div class="shell">
-
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="logo">SPRESSO <span>FACIAL</span></div>
+<!-- ====== SIDEBAR ====== -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <h1>SPRESSO FACIAL</h1>
+    <p>Operator Interface</p>
+  </div>
+  <nav class="sb-nav">
     <div class="nav-item active" data-page="monitor">
-      <span class="nav-icon">📷</span> Monitor
+      <span class="material-symbols-outlined msi">monitoring</span>Monitor
     </div>
     <div class="nav-item" data-page="persons">
-      <span class="nav-icon">👤</span> Pessoas
+      <span class="material-symbols-outlined msi">group</span>Pessoas
     </div>
     <div class="nav-item" data-page="events">
-      <span class="nav-icon">📋</span> Eventos
+      <span class="material-symbols-outlined msi">history</span>Eventos
     </div>
     <div class="nav-item" data-page="settings">
-      <span class="nav-icon">⚙️</span> Calibração
+      <span class="material-symbols-outlined msi">tune</span>Calibração
     </div>
-  </aside>
+    <div class="nav-item" data-page="config">
+      <span class="material-symbols-outlined msi">settings</span>Configurações
+    </div>
+  </nav>
+  <div class="sb-footer">
+    <div class="sb-avatar">OP</div>
+    <div class="sb-footer-info">
+      <p>System Op</p>
+      <p>ONLINE</p>
+    </div>
+  </div>
+</aside>
 
-  <!-- Main -->
-  <main class="main">
+<!-- ====== TOP BAR ====== -->
+<header class="top-bar">
+  <div class="tb-left">
+    <span class="tb-title" id="page-title-bar">Monitor</span>
+    <div class="tb-div"></div>
+    <span class="tb-clock font-mono" id="live-clock">00:00:00</span>
+  </div>
+  <div class="tb-right">
+    <span class="material-symbols-outlined tb-icon" title="Status do sistema" onclick="getStatus()">health_and_safety</span>
+    <span class="material-symbols-outlined tb-icon dim" title="Histórico" onclick="switchPage('events')">schedule</span>
+    <button class="btn btn-primary btn-sm" onclick="if(confirm('Sair do sistema?'))window.close()">Sair</button>
+  </div>
+</header>
 
-    <!-- ================================================ MONITOR -->
-    <div class="page active" id="page-monitor">
-      <h2 style="margin-bottom:20px;font-size:20px">Monitor ao vivo</h2>
-      <div class="grid-2">
-        <div>
-          <div class="card" style="padding:0;overflow:hidden">
-            <div class="snapshot-wrapper" id="snapshot-wrapper">
-              <img id="snapshot-img" src="" alt="Aguardando captura..." style="width:100%;display:block;min-height:240px;background:#0a0c10"/>
-              <div class="match-banner" id="match-banner">
-                <span class="match-icon">✅</span>
-                <span class="match-name" id="match-name">—</span>
-                <span class="match-cat" id="match-cat"></span>
-                <span class="match-conf" id="match-conf"></span>
-              </div>
+<!-- ====== MAIN ====== -->
+<main class="main">
+
+  <!-- ===== MONITOR ===== -->
+  <div class="page active" id="page-monitor">
+    <div class="monitor-grid">
+      <div class="feed-col">
+        <div class="feed-wrap" id="feed-wrap">
+          <img id="snapshot-img" src="" alt="Aguardando câmera..."/>
+          <div class="feed-label">
+            <span class="feed-badge live"><span class="live-dot" style="margin-right:5px"></span>CAM_01 · LIVE</span>
+            <span class="feed-badge feed-fps" id="live-fps">—</span>
+          </div>
+          <div class="feed-scan" id="feed-scan"></div>
+          <div class="match-banner" id="match-banner">
+            <span class="mn" id="match-name">—</span>
+            <span class="mc" id="match-cat"></span>
+            <span class="mconf" id="match-conf"></span>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:0">
+          <button class="btn btn-secondary" id="btn-live" onclick="toggleLive()" style="flex:1">
+            <span class="material-symbols-outlined" style="font-size:18px">pause</span>
+            <span id="btn-live-text">Pausar Feed</span>
+          </button>
+          <button class="btn btn-primary" id="btn-scan" onclick="scan()" style="flex:1">
+            <span class="material-symbols-outlined" style="font-size:18px">center_focus_strong</span>
+            Detectar Agora
+          </button>
+        </div>
+      </div>
+      <div class="panel-col">
+        <!-- Status atual -->
+        <div class="status-card" id="status-card">
+          <div class="card-title">Status Atual</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="status-dot d-live" id="status-dot"></div>
+            <span class="status-text" id="status-text">Inicializando...</span>
+          </div>
+          <div id="detect-detail" style="display:none" class="detect-detail">
+            <img class="detect-crop-big" id="detect-crop-img" src="" alt=""/>
+            <div style="flex:1;min-width:0">
+              <div style="font-family:var(--font-title);font-weight:700;font-size:13px;margin-bottom:3px" id="detect-name">—</div>
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted)" id="detect-meta">—</div>
             </div>
           </div>
-          <div class="btn-row">
-            <button class="btn btn-primary" id="btn-scan" onclick="scan()">🔍 Detectar agora</button>
-            <button class="btn btn-secondary" id="btn-auto" onclick="toggleAuto()">▶ Auto (5s)</button>
-          </div>
         </div>
-        <div>
-          <div class="card">
-            <div class="card-title">Último resultado</div>
-            <div id="result-faces" style="font-size:13px;color:var(--muted)">Nenhuma detecção ainda.</div>
-          </div>
-          <div class="card">
-            <div class="card-title">Status do sistema</div>
-            <div id="status-block" style="font-size:13px;color:var(--muted)">Verificando...</div>
-          </div>
-          <div class="card">
-            <div class="card-title">Histórico recente</div>
-            <div id="log-list" style="max-height:180px;overflow-y:auto"></div>
-          </div>
+        <!-- Alertas blacklist -->
+        <div class="card" style="padding:14px;margin-bottom:0">
+          <div class="card-title">Alertas Blacklist</div>
+          <div id="alerts-block" style="font-size:12px;color:var(--muted)">Nenhum alerta pendente.</div>
+        </div>
+        <!-- Status sistema -->
+        <div class="card" style="padding:14px;margin-bottom:0">
+          <div class="card-title">Status do Sistema</div>
+          <div id="status-block" style="font-size:12px;color:var(--muted)">Verificando...</div>
+        </div>
+        <!-- Histórico recente -->
+        <div class="card" style="padding:14px;flex:1;min-height:0;margin-bottom:0">
+          <div class="card-title">Histórico Recente</div>
+          <div id="history-list" style="display:flex;flex-direction:column;gap:2px"></div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- ================================================ PERSONS -->
-    <div class="page" id="page-persons">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-        <h2 style="font-size:20px">Pessoas cadastradas</h2>
-        <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-person')">+ Cadastrar</button>
+  <!-- ===== PESSOAS ===== -->
+  <div class="page" id="page-persons">
+    <div class="filter-row">
+      <div class="pills">
+        <button class="pill active" data-filter="all" onclick="filterPersons('all')">Todos</button>
+        <button class="pill" data-filter="vip" onclick="filterPersons('vip')">VIP</button>
+        <button class="pill" data-filter="blacklist" onclick="filterPersons('blacklist')">Blacklist</button>
       </div>
-      <div class="card" style="padding:0">
-        <div id="persons-list" style="min-height:80px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px">
-          Carregando...
-        </div>
-      </div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-person')">
+        <span class="material-symbols-outlined" style="font-size:16px">person_add</span>Nova Pessoa
+      </button>
     </div>
+    <div id="person-grid" class="person-grid"></div>
+  </div>
 
-    <!-- ================================================ EVENTS -->
-    <div class="page" id="page-events">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-        <h2 style="font-size:20px">Eventos de detecção</h2>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-          <input type="checkbox" id="chk-faces-only" onchange="loadEvents()" style="width:auto"/>
+  <!-- ===== EVENTOS ===== -->
+  <div class="page" id="page-events">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <h2 style="font-family:var(--font-title);font-size:18px;font-weight:700">Eventos de Detecção</h2>
+      <div style="display:flex;align-items:center;gap:12px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0;flex-direction:row">
+          <input type="checkbox" id="chk-faces-only" checked onchange="loadEvents()" style="width:auto;background:none;border:none;padding:0"/>
           Só com rostos
         </label>
+        <button class="btn btn-ghost btn-sm" onclick="loadEvents()">
+          <span class="material-symbols-outlined" style="font-size:16px">refresh</span>Atualizar
+        </button>
       </div>
+    </div>
+    <div class="card" style="padding:0;overflow:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Hora</th>
+            <th>Rostos detectados</th>
+            <th>Nome / Status</th>
+            <th>Câmera</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="events-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)"><span class="spin"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-      <!-- Grade de crops do evento selecionado -->
-      <div class="card" id="faces-panel" style="display:none;margin-bottom:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div class="card-title" style="margin:0" id="faces-panel-title">Rostos detectados</div>
-          <button class="btn btn-secondary btn-sm" onclick="closeFacesPanel()">✕ Fechar</button>
-        </div>
-        <div id="faces-grid" style="display:flex;flex-wrap:wrap;gap:12px"></div>
+  <!-- ===== CALIBRAÇÃO ===== -->
+  <div class="page" id="page-settings">
+    <h2 style="font-family:var(--font-title);font-size:18px;font-weight:700;margin-bottom:20px">Calibração</h2>
+    <div class="card">
+      <div class="card-title">Teste com Foto</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Faça upload de uma foto para testar o reconhecimento.</p>
+      <div class="upload-zone" id="test-zone" onclick="document.getElementById('test-file').click()"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')"
+           ondrop="handleTestDrop(event)">
+        <input type="file" id="test-file" accept="image/*" onchange="previewTest(this)"/>
+        <div id="test-placeholder"><span class="material-symbols-outlined" style="font-size:32px;color:var(--muted)">upload_file</span><br><span style="font-size:13px;color:var(--muted)">Clique ou arraste uma foto</span></div>
+        <img id="test-preview" class="upload-preview"/>
       </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" onclick="runPhotoTest()" id="btn-test-photo" disabled>Testar Foto</button>
+      </div>
+      <div id="test-result" style="margin-top:12px;font-size:12px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Status do Sistema</div>
+      <div id="cache-status" style="font-size:12px;color:var(--muted)">Verificando...</div>
+      <div class="metric-grid" id="metric-grid" style="display:none">
+        <div class="metric-card"><div class="metric-label">Cache Embeddings</div><div class="metric-value" id="m-cache">—</div></div>
+        <div class="metric-card"><div class="metric-label">Pessoas Ativas</div><div class="metric-value" id="m-persons">—</div></div>
+        <div class="metric-card"><div class="metric-label">Alertas Ativos</div><div class="metric-value" id="m-alerts">—</div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" onclick="loadCacheStatus()">
+          <span class="material-symbols-outlined" style="font-size:15px">refresh</span>Atualizar
+        </button>
+      </div>
+    </div>
+  </div>
 
-      <div class="card" style="padding:0;overflow:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Data / hora</th>
-              <th>Rostos</th>
-              <th>Inferência</th>
-              <th>Ação</th>
-            </tr>
-          </thead>
-          <tbody id="events-tbody">
-            <tr><td colspan="5" style="text-align:center;color:var(--muted)">Carregando...</td></tr>
-          </tbody>
-        </table>
+  <!-- ===== CONFIGURAÇÕES ===== -->
+  <div class="page" id="page-config">
+    <h2 style="font-family:var(--font-title);font-size:18px;font-weight:700;margin-bottom:20px">Configurações do Sistema</h2>
+
+    <!-- CÂMERAS RTSP -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">Câmeras IP / RTSP</div>
+        <button class="btn btn-primary btn-sm" id="btn-add-rtsp" onclick="openAddRtspCamera()">
+          <span class="material-symbols-outlined" style="font-size:15px">add</span>Adicionar
+        </button>
       </div>
-      <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="loadEvents()">↺ Atualizar</button>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Máximo de 2 câmeras RTSP. Alterações aplicadas em tempo real.</p>
+      <div id="rtsp-cameras-list"></div>
     </div>
 
-    <!-- ================================================ SETTINGS -->
-    <div class="page" id="page-settings">
-      <h2 style="margin-bottom:20px;font-size:20px">Calibração de reconhecimento</h2>
-      <div class="card">
-        <div class="card-title">Threshold de distância coseno</div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
-          Valores menores = mais restritivo (menos falsos positivos, pode falhar em iluminação ruim).<br>
-          Valores maiores = mais permissivo (reconhece mais fácil, mas pode confundir pessoas parecidas).<br>
-          <strong style="color:var(--text)">Recomendado: 0.40 – 0.50</strong>
-        </p>
+    <!-- WORKER DE DETECÇÃO -->
+    <div class="card">
+      <div class="card-title">Worker de Detecção Automática</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Quando ativo, o sistema captura e processa frames automaticamente em background, sem necessidade de clicar "Detectar Agora".</p>
+      <div class="form-group">
+        <label style="flex-direction:row;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+          <input type="checkbox" id="cfg-detection-auto" style="width:auto;background:none;border:none;padding:0"/>
+          <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Detecção automática ativa</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Frames por segundo (FPS)</label>
         <div class="threshold-row">
-          <input type="range" id="slider-threshold" min="0.20" max="0.70" step="0.01" value="0.45" oninput="updateThresholdLabel(this.value)"/>
-          <span class="threshold-val" id="label-threshold">0.45</span>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary btn-sm" onclick="saveThreshold()">Salvar threshold</button>
-        </div>
-        <div id="threshold-status" style="font-size:12px;margin-top:8px"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Teste de reconhecimento com foto</div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
-          Faça upload de uma foto para testar quanto o sistema consegue identificar corretamente.
-        </p>
-        <div class="upload-zone" id="test-zone" onclick="document.getElementById('test-file').click()" 
-             ondragover="event.preventDefault();this.classList.add('dragover')"
-             ondragleave="this.classList.remove('dragover')"
-             ondrop="handleTestDrop(event)">
-          <input type="file" id="test-file" accept="image/*" onchange="previewTest(this)"/>
-          <div id="test-placeholder">📁 Clique ou arraste uma foto para testar</div>
-          <img id="test-preview" class="upload-preview"/>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary btn-sm" onclick="runPhotoTest()" id="btn-test-photo" disabled>Testar foto</button>
-        </div>
-        <div id="test-result" style="margin-top:12px"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Cache de reconhecimento</div>
-        <div id="cache-status" style="font-size:13px;color:var(--muted)">Verificando...</div>
-        <div class="btn-row">
-          <button class="btn btn-secondary btn-sm" onclick="loadCacheStatus()">↺ Atualizar cache info</button>
+          <input type="range" id="cfg-detection-fps" min="0.1" max="5" step="0.1" value="1.0" oninput="document.getElementById('cfg-fps-val').textContent=parseFloat(this.value).toFixed(1)"/>
+          <span class="threshold-val" id="cfg-fps-val">1.0</span>
         </div>
       </div>
+      <div class="form-group">
+        <label>Cooldown de alerta blacklist (segundos)</label>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Intervalo mínimo entre alertas da mesma pessoa. Padrão: 300s (5 min).</p>
+        <input type="number" id="cfg-alert-cooldown" min="10" max="86400" step="10" placeholder="300"/>
+      </div>
+      <div class="form-group">
+        <label>Janela de deduplicação (segundos)</label>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Ignora re-detecções da mesma pessoa neste intervalo. Padrão: 30s.</p>
+        <input type="number" id="cfg-event-dedup" min="5" max="300" step="5" placeholder="30"/>
+      </div>
+      <div class="form-group">
+        <label>Fuso horário (IANA)</label>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Usado nas mensagens WhatsApp. Ex: America/Maceio, America/Sao_Paulo.</p>
+        <input type="text" id="cfg-timezone" placeholder="America/Maceio"/>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" onclick="saveDetectionSettings()">Salvar</button>
+      </div>
+      <div id="detection-settings-status" style="font-size:12px;margin-top:8px"></div>
     </div>
 
-  </main>
+    <!-- THRESHOLD DE RECONHECIMENTO -->
+    <div class="card">
+      <div class="card-title">Threshold de Reconhecimento</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+        Valores menores = mais restritivo (menos falsos positivos).<br>
+        Valores maiores = mais permissivo (mais identificações).<br>
+        <strong style="color:var(--text)">Recomendado: 0.40 – 0.55</strong>
+      </p>
+      <div class="threshold-row">
+        <input type="range" id="slider-threshold" min="0.20" max="0.70" step="0.01" value="0.45" oninput="updateThresholdLabel(this.value)"/>
+        <span class="threshold-val" id="label-threshold">0.45</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" onclick="saveThreshold()">Salvar Threshold</button>
+      </div>
+      <div id="threshold-status" style="font-size:12px;margin-top:8px"></div>
+    </div>
+
+    <!-- WHATSAPP / EVOLUTION API -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">WhatsApp — Evolution API</div>
+        <div id="wa-status-badge" style="font-size:11px;font-family:var(--font-mono);color:var(--muted)">— verificando</div>
+      </div>
+      <div class="form-group">
+        <label style="flex-direction:row;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+          <input type="checkbox" id="cfg-wa-enabled" style="width:auto;background:none;border:none;padding:0"/>
+          <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Notificações ativas</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label>URL da API (Evolution)</label>
+        <input type="text" id="cfg-wa-url" placeholder="http://localhost:8080"/>
+      </div>
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="password" id="cfg-wa-key" placeholder="••••••••••••••••"/>
+      </div>
+      <div class="form-group">
+        <label>Nome da Instância</label>
+        <input type="text" id="cfg-wa-instance" placeholder="spresso"/>
+      </div>
+
+      <!-- MÚLTIPLOS NÚMEROS DE ALERTA -->
+      <div class="form-group">
+        <label>Números para alertas (com DDI)</label>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Todos os números receberão alertas automáticos de blacklist.</p>
+        <div id="wa-numbers-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="wa-number-input" placeholder="+5511999999999" style="flex:1"/>
+          <button class="btn btn-ghost btn-sm" onclick="addWaNumber()" style="white-space:nowrap">
+            <span class="material-symbols-outlined" style="font-size:15px">add</span>Adicionar
+          </button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" onclick="checkWhatsappStatus()">
+          <span class="material-symbols-outlined" style="font-size:15px">wifi_tethering</span>Verificar Status
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="saveWhatsappSettings()">Salvar Configurações</button>
+      </div>
+      <div id="wa-save-result" style="font-size:12px;margin-top:8px"></div>
+    </div>
+
+    <!-- TESTE WHATSAPP (número avulso) -->
+    <div class="card">
+      <div class="card-title">Teste de Notificação WhatsApp</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Informe um número avulso para teste pontual, ou deixe em branco para enviar para todos os números cadastrados.</p>
+      <div class="form-group">
+        <label>Número de teste (opcional)</label>
+        <input type="text" id="cfg-wa-test-number" placeholder="+5511999999999 (opcional)"/>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" onclick="sendWhatsappTest()">
+          <span class="material-symbols-outlined" style="font-size:15px">send</span>Enviar Teste
+        </button>
+      </div>
+      <div id="wa-test-result" style="font-size:12px;margin-top:8px"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- ====== MODAL CÂMERA RTSP ====== -->
+<div class="modal-overlay" id="modal-rtsp-camera">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="rtsp-modal-title">Adicionar Câmera RTSP</span>
+      <button class="modal-close" onclick="closeModal('modal-rtsp-camera')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="rtsp-modal-alert" style="margin-bottom:8px"></div>
+      <input type="hidden" id="rtsp-edit-id"/>
+      <div class="form-group">
+        <label>ID interno *</label>
+        <input type="text" id="rtsp-camera-id" placeholder="ip1, ip2, cam-entrada..."/>
+        <p style="font-size:11px;color:var(--muted);margin-top:4px">Identificador único, sem espaços.</p>
+      </div>
+      <div class="form-group">
+        <label>Label (nome exibido) *</label>
+        <input type="text" id="rtsp-label" placeholder="Câmera Entrada, Câmera Caixa..."/>
+      </div>
+      <div class="form-group">
+        <label>URL RTSP *</label>
+        <input type="text" id="rtsp-url" placeholder="rtsp://192.168.1.100:554/stream"/>
+      </div>
+      <div id="rtsp-test-result" style="font-size:12px;margin-top:4px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="testRtspUrlModal()">
+        <span class="material-symbols-outlined" style="font-size:15px">wifi_tethering</span>Testar
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-rtsp-camera')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="submitRtspCamera()">Salvar</button>
+    </div>
+  </div>
 </div>
 
-<!-- ============================================================ MODAL ASSIGN FACE -->
+<!-- ====== MODAL FACE PICKER ====== -->
+<div class="modal-overlay" id="modal-face-picker">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title">Qual rosto deseja identificar?</span>
+      <button class="modal-close" onclick="closeModal('modal-face-picker')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Este evento tem múltiplos rostos desconhecidos. Selecione qual deseja cadastrar.</p>
+      <div id="face-picker-list" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-face-picker')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== MODAL ASSIGN FACE ====== -->
 <div class="modal-overlay" id="modal-assign-face">
   <div class="modal">
-    <div class="modal-title">Atribuir rosto a uma pessoa</div>
-    <div id="assign-alert"></div>
-
-    <!-- Preview do crop -->
-    <div style="text-align:center;margin-bottom:16px">
-      <img id="assign-crop-preview" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:2px solid var(--accent)"/>
+    <div class="modal-header">
+      <span class="modal-title">Identificar Rosto</span>
+      <button class="modal-close" onclick="closeModal('modal-assign-face')">×</button>
     </div>
-
-    <!-- Tabs: nova pessoa / existente -->
-    <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-      <button id="tab-new"      class="btn btn-primary"    style="flex:1;border-radius:0;border:none" onclick="switchAssignTab('new')">Nova pessoa</button>
-      <button id="tab-existing" class="btn btn-secondary"  style="flex:1;border-radius:0;border:none" onclick="switchAssignTab('existing')">Pessoa existente</button>
+    <div class="modal-body">
+      <div id="assign-alert" class="modal-alert" style="margin:0 0 10px"></div>
+      <div style="text-align:center;margin-bottom:16px">
+        <img id="assign-crop-preview" style="width:140px;height:140px;object-fit:cover;border-radius:var(--r-lg);border:2px solid var(--accent)" src="" alt=""/>
+      </div>
+      <div class="assign-tabs">
+        <button class="assign-tab active" id="tab-new" onclick="switchAssignTab('new')">Nova Pessoa</button>
+        <button class="assign-tab" id="tab-existing" onclick="switchAssignTab('existing')">Pessoa Existente</button>
+      </div>
+      <div id="assign-panel-new">
+        <div class="form-group">
+          <label>Nome *</label>
+          <input id="assign-name" type="text" placeholder="Nome completo"/>
+        </div>
+        <div class="form-group">
+          <label>Categoria *</label>
+          <select id="assign-category">
+            <option value="blacklist">🚫 Blacklist</option>
+            <option value="vip">⭐ VIP</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Observação</label>
+          <input id="assign-obs" type="text" placeholder="Opcional"/>
+        </div>
+      </div>
+      <div id="assign-panel-existing" style="display:none">
+        <div class="form-group">
+          <label>Selecionar Pessoa</label>
+          <select id="assign-person-select"><option value="">Carregando...</option></select>
+        </div>
+      </div>
     </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-assign-face')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="submitAssignFace()">✓ Vincular</button>
+    </div>
+  </div>
+</div>
 
-    <!-- Painel: nova pessoa -->
-    <div id="assign-panel-new">
+<!-- ====== MODAL ADD PERSON ====== -->
+<div class="modal-overlay" id="modal-add-person">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Cadastrar Pessoa</span>
+      <button class="modal-close" onclick="closeModal('modal-add-person')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="add-person-alert" class="modal-alert" style="margin:0 0 10px"></div>
       <div class="form-group">
         <label>Nome *</label>
-        <input id="assign-name" type="text" placeholder="Nome da pessoa"/>
+        <input id="p-name" type="text" placeholder="Nome completo"/>
       </div>
       <div class="form-group">
         <label>Categoria *</label>
-        <select id="assign-category">
+        <select id="p-category">
           <option value="blacklist">🚫 Blacklist</option>
           <option value="vip">⭐ VIP</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Observação</label>
-        <input id="assign-obs" type="text" placeholder="Opcional"/>
+        <label>Telefone</label>
+        <input id="p-phone" type="text" placeholder="(11) 99999-9999"/>
       </div>
-    </div>
-
-    <!-- Painel: pessoa existente -->
-    <div id="assign-panel-existing" style="display:none">
       <div class="form-group">
-        <label>Selecionar pessoa</label>
-        <select id="assign-person-select">
-          <option value="">Carregando...</option>
-        </select>
+        <label>Observação</label>
+        <textarea id="p-observation" placeholder="Notas adicionais..."></textarea>
       </div>
     </div>
-
     <div class="modal-footer">
-      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-assign-face')">Cancelar</button>
-      <button class="btn btn-primary btn-sm" onclick="submitAssignFace()">✓ Atribuir</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-add-person')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="submitAddPerson()">Prosseguir para Captura</button>
     </div>
   </div>
 </div>
 
-
-<div class="modal-overlay" id="modal-add-person">
-  <div class="modal">
-    <div class="modal-title">Cadastrar pessoa</div>
-    <div id="add-person-alert"></div>
-    <div class="form-group">
-      <label>Nome *</label>
-      <input id="p-name" type="text" placeholder="Nome completo"/>
+<!-- ====== MODAL VIEW PHOTOS ====== -->
+<div class="modal-overlay" id="modal-view-photos">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <span class="modal-title" id="view-photos-title">Fotos de Referência</span>
+      <button class="modal-close" onclick="closeModal('modal-view-photos')">×</button>
     </div>
-    <div class="form-group">
-      <label>Categoria *</label>
-      <select id="p-category">
-        <option value="blacklist">🚫 Blacklist</option>
-        <option value="vip" selected>⭐ VIP</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Telefone</label>
-      <input id="p-phone" type="text" placeholder="(11) 99999-9999"/>
-    </div>
-    <div class="form-group">
-      <label>Observação</label>
-      <textarea id="p-observation" placeholder="Notas adicionais..."></textarea>
+    <div class="modal-body">
+      <div id="view-photos-alert" class="modal-alert" style="margin:0 0 10px"></div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px" id="view-photos-meta"></p>
+      <div class="photo-grid" id="view-photos-grid"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-add-person')">Cancelar</button>
-      <button class="btn btn-primary btn-sm" onclick="submitAddPerson()">Criar pessoa</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-view-photos')">Fechar</button>
+      <button class="btn btn-primary btn-sm" id="btn-add-from-gallery" onclick="openAddPhotoFromGallery()">
+        <span class="material-symbols-outlined" style="font-size:16px">add_a_photo</span>Adicionar Foto
+      </button>
     </div>
   </div>
 </div>
 
-<!-- ============================================================ MODAL ADD PHOTO -->
+<!-- ====== MODAL ADD PHOTO ====== -->
 <div class="modal-overlay" id="modal-add-photo">
-  <div class="modal">
-    <div class="modal-title" id="add-photo-title">Adicionar foto de referência</div>
-    <div id="add-photo-alert"></div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
-      Envie uma foto nítida do rosto. Evite fotos com óculos de sol, obstrução, ou baixa iluminação.
-    </p>
-    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('photo-file').click()"
-         ondragover="event.preventDefault();this.classList.add('dragover')"
-         ondragleave="this.classList.remove('dragover')"
-         ondrop="handleUploadDrop(event)">
-      <input type="file" id="photo-file" accept="image/*" onchange="previewUpload(this)"/>
-      <div id="upload-placeholder">📁 Clique ou arraste uma foto</div>
-      <img id="upload-preview" class="upload-preview"/>
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title" id="add-photo-title">Adicionar Foto</span>
+      <button class="modal-close" onclick="closeModal('modal-add-photo')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="add-photo-alert" style="margin-bottom:8px"></div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Posicione o rosto de frente. Evite óculos escuros e pouca luz.</p>
+      <div class="photo-source-tabs">
+        <button type="button" class="photo-source-tab active" id="tab-photo-camera" onclick="setPhotoSourceMode('camera')">📷 Câmera ao vivo</button>
+        <button type="button" class="photo-source-tab" id="tab-photo-file" onclick="setPhotoSourceMode('file')">📁 Arquivo</button>
+      </div>
+      <div class="photo-source-panel active" id="panel-photo-camera">
+        <div class="cam-preview-box">
+          <img id="photo-camera-preview" alt="Preview câmera"/>
+          <div class="cam-preview-status">
+            <span><span class="live-dot" style="margin-right:5px"></span>Atualiza a cada 1s</span>
+            <span id="photo-camera-ts">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="photo-source-panel" id="panel-photo-file">
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('photo-file').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="handleUploadDrop(event)">
+          <input type="file" id="photo-file" accept="image/*" onchange="previewUpload(this)"/>
+          <div id="upload-placeholder">📁 Clique ou arraste uma foto</div>
+          <img id="upload-preview" class="upload-preview"/>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-add-photo')">Cancelar</button>
-      <button class="btn btn-primary btn-sm" id="btn-upload-photo" onclick="submitPhoto()" disabled>Enviar foto</button>
-      <button class="btn btn-secondary btn-sm" onclick="capturePhoto()">📷 Capturar câmera</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-add-photo')">Cancelar</button>
+      <button class="btn btn-ghost btn-sm" id="btn-upload-photo" onclick="submitPhoto()" disabled style="display:none">Enviar Arquivo</button>
+      <button class="btn btn-primary btn-sm" id="btn-capture-photo" onclick="capturePhoto()">
+        <span class="material-symbols-outlined" style="font-size:16px">photo_camera</span>Registrar esta foto
+      </button>
     </div>
   </div>
 </div>
+
+<!-- ====== BLACKLIST OVERLAY ====== -->
+<div class="blacklist-overlay" id="blacklist-overlay">
+  <div class="blacklist-card">
+    <h3>🚫 ALERTA BLACKLIST</h3>
+    <img id="bl-photo" class="bl-photo" src="" alt=""/>
+    <div id="bl-name" style="font-family:var(--font-title);font-size:18px;font-weight:700;margin-bottom:6px;color:var(--danger)">—</div>
+    <div id="bl-meta" style="font-size:12px;color:var(--muted);margin-bottom:20px">—</div>
+    <button class="btn btn-danger" onclick="confirmActiveAlert()">✓ Confirmar e Dispensar</button>
+  </div>
+</div>
+
+<!-- ====== TOAST ====== -->
+<div class="toast" id="toast">
+  <div class="toast-icon-wrap" id="toast-icon-wrap"></div>
+  <div>
+    <div class="toast-title" id="toast-title">—</div>
+    <div class="toast-msg" id="toast-msg">—</div>
+  </div>
+</div>
+
+<!-- ====== FOOTER ====== -->
+<footer class="global-footer">
+  <span class="footer-l">SPRESSO · Monitoramento ativo</span>
+  <div class="footer-r">
+    <div class="footer-dot"></div>
+    <span>SYSTEM_ARMED_ACTIVE</span>
+  </div>
+</footer>
 
 <script>
 const API = '';
-let autoTimer = null;
+let liveMode = false;
+let previewTimer = null;
+let recognizeTimer = null;
+const liveRecognizeMs = 1000;
+const previewMs = 400;
+let _recognizeInProgress = false;
+let _activeAlertId = null;
+let _matchTimer = null;
+let photoCaptureTimer = null;
+let _photoPreviewBusy = false;
+let _photoPreviewUrl = null;
+let photoSourceMode = 'camera';
 let currentPersonId = null;
-let lastScanBlob = null;
+let galleryPersonId = null;
+let _assignEventId = null;
+let _assignFaceId = null;
+let _allPersons = [];
+let _eventsAutoRefresh = null;
 
-// ============================================================ NAV
+// ====== CLOCK ======
+function updateClock() {
+  document.getElementById('live-clock').textContent = new Date().toLocaleTimeString('pt-BR');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ====== NAV ======
+function switchPage(page) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (navItem) navItem.classList.add('active');
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.classList.add('active');
+  document.getElementById('page-title-bar').textContent =
+    {monitor:'Monitor',persons:'Pessoas',events:'Eventos',settings:'Calibração',config:'Configurações'}[page] || page;
+  if (document.getElementById('modal-add-photo').classList.contains('open')) closeModal('modal-add-photo');
+  if (page === 'persons') loadPersons();
+  if (page === 'events') loadEvents();
+  if (page === 'settings') { loadCacheStatus(); loadThreshold(); }
+  if (page === 'config') loadConfigPage();
+}
+
 document.querySelectorAll('.nav-item').forEach(item => {
-  item.addEventListener('click', () => {
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    item.classList.add('active');
-    const page = item.dataset.page;
-    document.getElementById('page-' + page).classList.add('active');
-    if (page === 'persons') loadPersons();
-    if (page === 'events') loadEvents();
-    if (page === 'settings') { loadCacheStatus(); loadThreshold(); }
-  });
+  item.addEventListener('click', () => switchPage(item.dataset.page));
 });
 
-// ============================================================ MONITOR
-
+// ====== MONITOR ======
 async function getStatus() {
   try {
     const [health, det] = await Promise.all([
@@ -448,154 +856,338 @@ async function getStatus() {
       fetch(API + '/detection/status').then(r => r.json()),
     ]);
     document.getElementById('status-block').innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <div style="display:flex;align-items:center;gap:8px">
           <span class="live-dot"></span>
           <span>API: <strong>${health.status || 'ok'}</strong></span>
         </div>
-        <div>Detector: <span class="badge ${det.ready ? 'badge-green' : 'badge-red'}">${det.ready ? 'Pronto' : 'Offline'}</span></div>
-        <div>Pessoas no cache: <strong style="color:var(--accent)">${det.persons_in_cache}</strong></div>
+        <div>Detector: <span class="badge ${det.ready ? 'badge-ok' : 'badge-bl'}">${det.ready ? 'Pronto' : 'Offline'}</span></div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">Cache: <strong style="color:var(--accent)">${det.persons_in_cache}</strong> pessoas</div>
+        ${det.active_alerts ? `<div style="font-family:var(--font-mono);font-size:11px;color:var(--danger)">⚠ ${det.active_alerts} alerta(s) ativo(s)</div>` : ''}
+        ${det.presence_today ? `<div style="font-size:11px;color:var(--muted)">VIP hoje: ${det.presence_today.vip ?? det.presence_today.total ?? 0} · Blacklist: ${det.presence_today.blacklist ?? 0}</div>` : ''}
       </div>`;
   } catch(e) {
-    document.getElementById('status-block').innerHTML = `<span style="color:var(--danger)">Sem conexão com a API</span>`;
+    document.getElementById('status-block').innerHTML = `<span style="color:var(--danger);font-size:12px">Sem conexão com a API</span>`;
   }
+}
+
+async function loadActiveAlerts() {
+  try {
+    const { items: alerts } = await fetch(API + '/alerts/active').then(r => r.json());
+    const el = document.getElementById('alerts-block');
+    if (!alerts?.length) {
+      el.innerHTML = '<span style="color:var(--muted)">Nenhum alerta pendente.</span>';
+      return;
+    }
+    el.innerHTML = alerts.map(a => `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--danger);font-size:11px;font-weight:700">🚫 ${esc(a.person_name)}</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">${parseTS(a.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
+        <button class="btn btn-danger btn-sm" style="margin-left:auto;font-size:10px;padding:3px 8px" onclick="confirmAlertById(${a.id})">✓</button>
+      </div>`).join('');
+  } catch(e) {}
 }
 
 async function scan() {
   const btn = document.getElementById('btn-scan');
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span> Detectando...';
+  const scanEl = document.getElementById('feed-scan');
+  scanEl.classList.add('on');
   try {
-    const resp = await fetch(API + '/detection/snapshot');
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    document.getElementById('snapshot-img').src = url;
-
-    const faces = parseInt(resp.headers.get('X-Face-Count') || '0');
-    const ms = resp.headers.get('X-Inference-Ms');
-    const evId = resp.headers.get('X-Event-Id');
-
-    // Fetch JSON para ter dados de reconhecimento
-    const jsonResp = await fetch(API + '/detection/faces');
-    const data = await jsonResp.json();
-
-    renderFaceResult(data, ms);
-    addLogLine(data.timestamp, faces, evId);
+    const data = await fetch(API + '/detection/faces?dedup=true&persist=true&include_frame=true').then(r => r.json());
+    applyFrame(data);
+    updateStatusCard(data);
+    if (!data.deduplicated && data.event_id) addHistoryItem(data);
     await getStatus();
+    await loadActiveAlerts();
   } catch(e) {
-    document.getElementById('result-faces').innerHTML = `<span style="color:var(--danger)">Erro: ${e.message}</span>`;
+    showToast('Erro', e.message, 'error');
   }
   btn.disabled = false;
-  btn.innerHTML = '🔍 Detectar agora';
+  btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px">center_focus_strong</span> Detectar Agora';
+  scanEl.classList.remove('on');
 }
 
-let _matchTimer = null;
-
-function showMatchBanner(name, category, confidence) {
-  const banner  = document.getElementById('match-banner');
-  const wrapper = document.getElementById('snapshot-wrapper');
-  const catEl   = document.getElementById('match-cat');
-
-  document.getElementById('match-name').textContent = name;
-  document.getElementById('match-conf').textContent  = `${confidence.toFixed(0)}% conf.`;
-  catEl.textContent  = category === 'blacklist' ? '🚫 Blacklist' : '⭐ VIP';
-  catEl.className    = `match-cat ${category}`;
-
-  banner.classList.add('show');
-  wrapper.classList.add('matched');
-
-  if (_matchTimer) clearTimeout(_matchTimer);
-  _matchTimer = setTimeout(() => {
-    banner.classList.remove('show');
-    wrapper.classList.remove('matched');
-    _matchTimer = null;
-  }, 1000);
+function applyFrame(data) {
+  const img = document.getElementById('snapshot-img');
+  if (data.frame_base64) {
+    img.src = 'data:image/jpeg;base64,' + data.frame_base64;
+  } else if (data.event_id) {
+    img.src = API + `/events/${data.event_id}/snapshot?t=${Date.now()}`;
+  }
+  applyFeedState(data);
 }
 
-function renderFaceResult(data, ms) {
-  const el = document.getElementById('result-faces');
-  if (!data.faces || data.faces.length === 0) {
-    el.innerHTML = '<span style="color:var(--muted)">Nenhum rosto detectado.</span>';
+function applyFeedState(data) {
+  const wrap = document.getElementById('feed-wrap');
+  wrap.classList.remove('f-blacklist', 'f-vip');
+  const bl = (data.faces || []).find(f => f.matched && f.category === 'blacklist');
+  const vip = (data.faces || []).find(f => f.matched && f.category === 'vip');
+  if (bl) {
+    wrap.classList.add('f-blacklist');
+    if (data.active_alert) showBlacklistOverlay(data.active_alert);
+  } else if (vip) {
+    wrap.classList.add('f-vip');
+    showMatchBanner(vip.person_name, vip.category, vip.recognition_confidence);
+  }
+}
+
+function updateStatusCard(data) {
+  const card = document.getElementById('status-card');
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  const detail = document.getElementById('detect-detail');
+  card.classList.remove('s-vip', 's-bl', 's-unknown');
+  dot.classList.remove('d-vip', 'd-bl', 'd-unknown');
+
+  if (!data.faces || !data.faces.length) {
+    txt.textContent = 'Nenhum rosto detectado';
+    dot.className = 'status-dot d-live';
+    detail.style.display = 'none';
     return;
   }
 
-  // Verifica se algum rosto foi identificado → aciona banner
-  const matched = data.faces.find(f => f.matched);
-  if (matched) {
-    showMatchBanner(matched.person_name, matched.category, matched.recognition_confidence);
-  }
+  const bl = data.faces.find(f => f.matched && f.category === 'blacklist');
+  const vip = data.faces.find(f => f.matched && f.category === 'vip');
+  const unknown = data.faces.find(f => !f.matched);
 
-  el.innerHTML = data.faces.map((f, i) => {
-    const cat = f.category ? `<span class="badge ${f.category === 'blacklist' ? 'badge-red' : 'badge-purple'}">${f.category}</span>` : '';
-    const who = f.matched
-      ? `<strong style="color:var(--success)">${f.person_name}</strong> ${cat} <span style="color:var(--muted)">${f.recognition_confidence.toFixed(0)}% conf.</span>`
-      : `<span style="color:var(--muted)">Desconhecido</span>`;
-    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:3px">Rosto ${i+1} — det. ${(f.confidence*100).toFixed(0)}%</div>
-      <div>${who}</div>
-    </div>`;
-  }).join('') + `<div style="font-size:11px;color:var(--muted);margin-top:8px">Inferência Hailo: ${data.inference_ms?.toFixed(0)}ms</div>`;
-}
-
-function addLogLine(ts, count, evId) {
-  const list = document.getElementById('log-list');
-  const d = new Date(ts);
-  const time = d.toLocaleTimeString('pt-BR');
-  const line = document.createElement('div');
-  line.className = 'log-line';
-  line.innerHTML = `<span class="log-time">${time}</span><span class="log-count">${count} rosto(s)</span><span style="color:var(--muted)">ev#${evId}</span>`;
-  list.prepend(line);
-  if (list.children.length > 20) list.lastChild.remove();
-}
-
-function toggleAuto() {
-  const btn = document.getElementById('btn-auto');
-  if (autoTimer) {
-    clearInterval(autoTimer);
-    autoTimer = null;
-    btn.innerHTML = '▶ Auto (5s)';
-    btn.classList.remove('btn-primary');
-    btn.classList.add('btn-secondary');
+  if (bl) {
+    card.classList.add('s-bl');
+    dot.classList.add('d-bl');
+    txt.textContent = `ALERTA — ${esc(bl.person_name)} (blacklist)`;
+    showDetailCard(data, bl);
+  } else if (vip) {
+    card.classList.add('s-vip');
+    dot.classList.add('d-vip');
+    txt.textContent = `${esc(vip.person_name)} — VIP identificado`;
+    showDetailCard(data, vip);
+  } else if (unknown) {
+    card.classList.add('s-unknown');
+    dot.classList.add('d-unknown');
+    txt.textContent = `Rosto desconhecido — monitorando`;
+    detail.style.display = 'none';
   } else {
-    scan();
-    autoTimer = setInterval(scan, 5000);
-    btn.innerHTML = '⏹ Parar auto';
-    btn.classList.remove('btn-secondary');
-    btn.classList.add('btn-primary');
+    txt.textContent = 'Nenhum rosto detectado';
+    dot.className = 'status-dot d-live';
+    detail.style.display = 'none';
   }
 }
 
-// ============================================================ PERSONS
-
-async function loadPersons() {
-  const el = document.getElementById('persons-list');
-  el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)"><span class="spin"></span></div>';
-  try {
-    const persons = await fetch(API + '/persons?active_only=false').then(r => r.json());
-    if (!persons.length) {
-      el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Nenhuma pessoa cadastrada.</div>';
-      return;
-    }
-    el.innerHTML = persons.map(p => {
-      const catBadge = p.category === 'blacklist'
-        ? '<span class="badge badge-red">🚫 Blacklist</span>'
-        : '<span class="badge badge-purple">⭐ VIP</span>';
-      const statusBadge = p.active ? '' : '<span class="badge badge-warn" style="margin-left:6px">Inativo</span>';
-      return `<div class="person-card">
-        <div class="person-avatar-ph">👤</div>
-        <div>
-          <div class="person-name">${esc(p.name)} ${catBadge} ${statusBadge}</div>
-          <div class="person-meta">${p.photo_count} foto(s) cadastrada(s)${p.phone ? ' · ' + esc(p.phone) : ''}</div>
-        </div>
-        <div class="person-actions">
-          <button class="btn btn-secondary btn-sm" onclick="openAddPhoto(${p.id}, '${esc(p.name)}')">+ Foto</button>
-          <button class="btn btn-danger btn-sm" onclick="deletePerson(${p.id}, '${esc(p.name)}')">🗑</button>
-        </div>
-      </div>`;
-    }).join('');
-  } catch(e) {
-    el.innerHTML = `<div style="padding:20px;color:var(--danger)">${e.message}</div>`;
+function showDetailCard(data, face) {
+  const detail = document.getElementById('detect-detail');
+  const cropImg = document.getElementById('detect-crop-img');
+  const nameEl = document.getElementById('detect-name');
+  const metaEl = document.getElementById('detect-meta');
+  if (data.event_id) {
+    cropImg.src = API + `/events/${data.event_id}/snapshot?t=${Date.now()}`;
+  } else {
+    cropImg.style.display = 'none';
   }
+  nameEl.textContent = face.person_name || 'Desconhecido';
+  metaEl.textContent = `${face.recognition_confidence?.toFixed(0) || 0}% confiança`;
+  detail.style.display = 'flex';
+}
+
+function addHistoryItem(data) {
+  const list = document.getElementById('history-list');
+  const face = (data.faces || []).find(f => f.matched) || (data.faces || [])[0];
+  if (!face) return;
+  const name = face.matched ? face.person_name : 'Desconhecido';
+  const isbl = face.category === 'blacklist';
+  const time = parseTS(data.timestamp).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const div = document.createElement('div');
+  div.className = 'history-item';
+  const cropSrc = data.event_id
+    ? `${API}/events/${data.event_id}/snapshot`
+    : (data.frame_base64 ? 'data:image/jpeg;base64,' + data.frame_base64 : '');
+  const catBadge = face.category === 'blacklist'
+    ? '<span class="badge badge-bl" style="font-size:9px">BL</span>'
+    : face.category === 'vip'
+    ? '<span class="badge badge-vip" style="font-size:9px">VIP</span>'
+    : '';
+  div.innerHTML = `
+    <img class="history-crop" src="${cropSrc}" onerror="this.style.opacity='.2'" alt=""/>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:4px">
+        <span class="history-name" style="${isbl ? 'color:var(--danger)' : ''}">${esc(name)}</span>
+        ${catBadge}
+      </div>
+      <div class="history-meta">${time}</div>
+    </div>`;
+  list.prepend(div);
+  if (list.children.length > 12) list.lastChild.remove();
+}
+
+function showMatchBanner(name, category, confidence) {
+  const banner = document.getElementById('match-banner');
+  document.getElementById('match-name').textContent = name;
+  document.getElementById('match-conf').textContent = `${confidence?.toFixed(0)}%`;
+  const catEl = document.getElementById('match-cat');
+  catEl.textContent = category === 'blacklist' ? '🚫 Blacklist' : '⭐ VIP';
+  catEl.className = `mc ${category}`;
+  banner.classList.add('show');
+  if (_matchTimer) clearTimeout(_matchTimer);
+  _matchTimer = setTimeout(() => { banner.classList.remove('show'); _matchTimer = null; }, category === 'vip' ? 3500 : 1000);
+}
+
+function showBlacklistOverlay(alert) {
+  if (!alert) return;
+  _activeAlertId = alert.id;
+  document.getElementById('bl-name').textContent = alert.person_name;
+  document.getElementById('bl-meta').textContent =
+    `${alert.confidence?.toFixed(0)}% confiança · ${new Date(alert.created_at).toLocaleString('pt-BR')}`;
+  const photo = document.getElementById('bl-photo');
+  if (alert.crop_path) {
+    photo.src = API + `/alerts/${alert.id}/crop?t=${Date.now()}`;
+    photo.style.display = 'block';
+  } else {
+    photo.style.display = 'none';
+  }
+  document.getElementById('blacklist-overlay').classList.add('show');
+}
+
+async function confirmActiveAlert() {
+  if (!_activeAlertId) return;
+  try {
+    await fetch(API + `/alerts/${_activeAlertId}/confirm`, { method: 'POST' });
+    document.getElementById('blacklist-overlay').classList.remove('show');
+    document.getElementById('feed-wrap').classList.remove('f-blacklist');
+    _activeAlertId = null;
+    await loadActiveAlerts();
+    await getStatus();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+async function confirmAlertById(id) {
+  try {
+    await fetch(API + `/alerts/${id}/confirm`, { method: 'POST' });
+    if (_activeAlertId === id) {
+      document.getElementById('blacklist-overlay').classList.remove('show');
+      _activeAlertId = null;
+    }
+    await loadActiveAlerts();
+  } catch(e) {}
+}
+
+// ====== LIVE MODE ======
+function toggleLive() {
+  if (liveMode) stopLive(); else startLive();
+}
+
+function startLive() {
+  if (liveMode) return;
+  liveMode = true;
+  document.getElementById('btn-live-text').textContent = 'Pausar Feed';
+  document.getElementById('btn-live').innerHTML =
+    '<span class="material-symbols-outlined" style="font-size:18px">pause</span><span id="btn-live-text">Pausar Feed</span>';
+  previewTimer = setInterval(refreshPreview, previewMs);
+  recognizeTimer = setInterval(liveRecognize, liveRecognizeMs);
+  refreshPreview();
+  liveRecognize();
+}
+
+function stopLive() {
+  liveMode = false;
+  if (previewTimer) { clearInterval(previewTimer); previewTimer = null; }
+  if (recognizeTimer) { clearInterval(recognizeTimer); recognizeTimer = null; }
+  document.getElementById('btn-live').innerHTML =
+    '<span class="material-symbols-outlined" style="font-size:18px">play_arrow</span><span id="btn-live-text">Retomar Feed</span>';
+  document.getElementById('feed-wrap').classList.remove('f-blacklist', 'f-vip');
+}
+
+async function refreshPreview() {
+  if (_recognizeInProgress) return;
+  try {
+    const resp = await fetch(API + '/camera/preview?t=' + Date.now());
+    if (!resp.ok) return;
+    const blob = await resp.blob();
+    document.getElementById('snapshot-img').src = URL.createObjectURL(blob);
+  } catch(e) {}
+}
+
+async function liveRecognize() {
+  if (_recognizeInProgress) return;
+  _recognizeInProgress = true;
+  const t0 = performance.now();
+  try {
+    const data = await fetch(
+      API + '/detection/faces?dedup=false&persist=false&include_frame=true&process_alerts=false'
+    ).then(r => r.json());
+    applyFrame(data);
+    updateStatusCard(data);
+    const ms = Math.round(performance.now() - t0);
+    document.getElementById('live-fps').textContent = `${ms}ms · ${data.face_count} rosto(s)`;
+    // Adiciona ao histórico quando há rosto detectado com match
+    const hasMatch = (data.faces || []).some(f => f.matched);
+    if (hasMatch) addHistoryItem(data);
+  } catch(e) {
+    document.getElementById('live-fps').textContent = 'erro';
+  } finally {
+    _recognizeInProgress = false;
+  }
+}
+
+// Page Visibility API
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopLive();
+  else if (document.querySelector('.nav-item.active')?.dataset.page === 'monitor') startLive();
+});
+
+// ====== PERSONS ======
+async function loadPersons() {
+  const grid = document.getElementById('person-grid');
+  grid.innerHTML = '<span class="spin"></span>';
+  try {
+    _allPersons = await fetch(API + '/persons?active_only=false').then(r => r.json());
+    renderPersonGrid(_allPersons);
+  } catch(e) {
+    grid.innerHTML = `<span style="color:var(--danger);font-size:12px">${e.message}</span>`;
+  }
+}
+
+function filterPersons(filter) {
+  document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.filter === filter));
+  const filtered = filter === 'all' ? _allPersons : _allPersons.filter(p => p.category === filter);
+  renderPersonGrid(filtered);
+}
+
+function renderPersonGrid(persons) {
+  const grid = document.getElementById('person-grid');
+  if (!persons.length) {
+    grid.innerHTML = '<div style="color:var(--muted);font-size:13px;grid-column:1/-1;padding:20px">Nenhuma pessoa cadastrada.</div>';
+    return;
+  }
+  grid.innerHTML = persons.map(p => {
+    const catBadge = p.category === 'blacklist'
+      ? '<span class="badge badge-bl">🚫 Blacklist</span>'
+      : '<span class="badge badge-vip">⭐ VIP</span>';
+    const withEmb = (p.photos || []).filter(ph => ph.has_embedding).length;
+    const total = p.photo_count || 0;
+    const covClass = total === 0 ? '' : withEmb === total ? 'cov-ok' : 'cov-warn';
+    const covText = total === 0 ? '0 fotos' : withEmb === total
+      ? `${total} foto(s) ✓`
+      : `${total} foto(s) · ${total - withEmb} sem embedding`;
+    const thumb = p.photos && p.photos.length
+      ? `<img class="person-photo-lg" src="${API}/persons/${p.id}/photos/${p.photos[0].id}/image?t=${Date.now()}" alt="" onerror="this.outerHTML='<div class=\\'person-photo-ph\\'>👤</div>'"/>`
+      : '<div class="person-photo-ph">👤</div>';
+    const inactiveBadge = !p.active ? '<span class="badge badge-warn" style="margin-left:4px">Inativo</span>' : '';
+    return `<div class="person-card-v2" onclick="openPersonGallery(${p.id})">
+      <div class="pc-top">
+        ${thumb}
+        <div style="flex:1;min-width:0">
+          <div class="person-name-v2">${esc(p.name)} ${inactiveBadge}</div>
+          <div style="margin-top:3px">${catBadge}</div>
+          <div class="person-pid">#${p.id}</div>
+        </div>
+      </div>
+      <div class="person-coverage ${covClass}">${covText}</div>
+      <div class="pc-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm" onclick="openAddPhoto(${p.id},'${esc(p.name)}')">+ Foto</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePerson(${p.id},'${esc(p.name)}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function submitAddPerson() {
@@ -603,48 +1195,138 @@ async function submitAddPerson() {
   const category = document.getElementById('p-category').value;
   const phone = document.getElementById('p-phone').value.trim() || null;
   const observation = document.getElementById('p-observation').value.trim() || null;
-  if (!name) { showModalAlert('add-person-alert', 'Nome obrigatório.', 'error'); return; }
-
+  if (!name) { showToast('Atenção', 'Nome obrigatório.', 'warn'); return; }
   try {
     const r = await fetch(API + '/persons', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({name, category, phone, observation}),
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name, category, phone, observation }),
     });
-    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
     closeModal('modal-add-person');
-    loadPersons();
     document.getElementById('p-name').value = '';
     document.getElementById('p-phone').value = '';
     document.getElementById('p-observation').value = '';
+    loadPersons();
+    showToast('Pessoa criada!', `${data.name} cadastrada. Adicione fotos agora.`, 'success');
+    openAddPhoto(data.id, data.name);
   } catch(e) {
-    showModalAlert('add-person-alert', 'Erro: ' + e.message, 'error');
+    showToast('Erro', e.message, 'error');
   }
 }
 
 async function deletePerson(id, name) {
   if (!confirm(`Remover "${name}" permanentemente?`)) return;
-  await fetch(API + '/persons/' + id, {method:'DELETE'});
+  await fetch(API + '/persons/' + id, { method: 'DELETE' });
+  loadPersons();
+  getStatus();
+  showToast('Removido', `${name} removido do sistema.`, 'info');
+}
+
+async function openPersonGallery(personId) {
+  galleryPersonId = personId;
+  const grid = document.getElementById('view-photos-grid');
+  grid.innerHTML = '<span class="spin"></span>';
+  openModal('modal-view-photos');
+  try {
+    const p = await fetch(API + '/persons/' + personId).then(r => r.json());
+    const title = document.getElementById('view-photos-title');
+    title.textContent = `${p.name} — Fotos`;
+    const catStr = p.category === 'blacklist' ? '🚫 Blacklist' : '⭐ VIP';
+    document.getElementById('view-photos-meta').textContent =
+      `${catStr} · ${p.photo_count} foto(s) de referência`;
+    if (!p.photos || !p.photos.length) {
+      grid.innerHTML = '<span style="color:var(--muted);font-size:12px">Nenhuma foto cadastrada.</span>';
+      return;
+    }
+    grid.innerHTML = p.photos.map(ph => `
+      <div class="photo-thumb">
+        <img src="${API}/persons/${personId}/photos/${ph.id}/image?t=${Date.now()}" alt="foto ${ph.id}"/>
+        <span class="embed-badge ${ph.has_embedding ? 'ok' : 'no'}">${ph.has_embedding ? '✓' : '⚠'}</span>
+        <button class="btn btn-danger btn-sm btn-del" onclick="deletePhoto(${personId},${ph.id})" title="Remover">✕</button>
+      </div>`).join('');
+  } catch(e) {
+    grid.innerHTML = `<span style="color:var(--danger);font-size:12px">${e.message}</span>`;
+  }
+}
+
+function openAddPhotoFromGallery() {
+  if (!galleryPersonId) return;
+  const title = document.getElementById('view-photos-title').textContent.split(' — ')[0];
+  closeModal('modal-view-photos');
+  openAddPhoto(galleryPersonId, title);
+}
+
+async function deletePhoto(personId, photoId) {
+  if (!confirm('Remover esta foto?')) return;
+  await fetch(API + `/persons/${personId}/photos/${photoId}`, { method: 'DELETE' });
+  openPersonGallery(personId);
   loadPersons();
 }
 
-// ============================================================ PHOTOS
+// ====== PHOTO MODAL ======
+function setPhotoSourceMode(mode) {
+  photoSourceMode = mode;
+  document.getElementById('tab-photo-camera').classList.toggle('active', mode === 'camera');
+  document.getElementById('tab-photo-file').classList.toggle('active', mode === 'file');
+  document.getElementById('panel-photo-camera').classList.toggle('active', mode === 'camera');
+  document.getElementById('panel-photo-file').classList.toggle('active', mode === 'file');
+  document.getElementById('btn-capture-photo').style.display = mode === 'camera' ? '' : 'none';
+  document.getElementById('btn-upload-photo').style.display = mode === 'file' ? '' : 'none';
+  if (mode === 'camera') startPhotoCameraPreview();
+  else stopPhotoCameraPreview();
+}
+
+function startPhotoCameraPreview() {
+  stopPhotoCameraPreview();
+  if (liveMode) stopLive();
+  refreshPhotoPreview();
+  photoCaptureTimer = setInterval(refreshPhotoPreview, 1000);
+}
+
+function stopPhotoCameraPreview() {
+  if (photoCaptureTimer) { clearInterval(photoCaptureTimer); photoCaptureTimer = null; }
+  if (_photoPreviewUrl) { URL.revokeObjectURL(_photoPreviewUrl); _photoPreviewUrl = null; }
+  const img = document.getElementById('photo-camera-preview');
+  if (img) img.removeAttribute('src');
+}
+
+async function refreshPhotoPreview() {
+  if (_photoPreviewBusy) return;
+  _photoPreviewBusy = true;
+  try {
+    const resp = await fetch(API + '/camera/preview?t=' + Date.now());
+    if (!resp.ok) throw new Error('Camera offline');
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const img = document.getElementById('photo-camera-preview');
+    if (_photoPreviewUrl) URL.revokeObjectURL(_photoPreviewUrl);
+    _photoPreviewUrl = url;
+    img.src = url;
+    document.getElementById('photo-camera-ts').textContent = new Date().toLocaleTimeString('pt-BR');
+  } catch(e) {
+    document.getElementById('photo-camera-ts').textContent = e.message;
+  } finally {
+    _photoPreviewBusy = false;
+  }
+}
 
 function openAddPhoto(personId, name) {
   currentPersonId = personId;
-  document.getElementById('add-photo-title').textContent = `Adicionar foto — ${name}`;
+  document.getElementById('add-photo-title').textContent = `Adicionar Foto — ${name}`;
+  document.getElementById('add-photo-alert').innerHTML = '';
   document.getElementById('upload-preview').style.display = 'none';
   document.getElementById('upload-placeholder').style.display = 'block';
   document.getElementById('photo-file').value = '';
   document.getElementById('btn-upload-photo').disabled = true;
+  setPhotoSourceMode('camera');
   openModal('modal-add-photo');
 }
 
 function previewUpload(input) {
   if (!input.files[0]) return;
-  const url = URL.createObjectURL(input.files[0]);
   const img = document.getElementById('upload-preview');
-  img.src = url;
+  img.src = URL.createObjectURL(input.files[0]);
   img.style.display = 'block';
   document.getElementById('upload-placeholder').style.display = 'none';
   document.getElementById('btn-upload-photo').disabled = false;
@@ -656,7 +1338,7 @@ function handleUploadDrop(e) {
   const f = e.dataTransfer.files[0];
   if (!f) return;
   document.getElementById('photo-file').files = e.dataTransfer.files;
-  previewUpload({files: e.dataTransfer.files});
+  previewUpload({ files: e.dataTransfer.files });
 }
 
 async function submitPhoto() {
@@ -664,133 +1346,164 @@ async function submitPhoto() {
   const file = document.getElementById('photo-file').files[0];
   if (!file) return;
   const btn = document.getElementById('btn-upload-photo');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span> Enviando...';
-
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
   const fd = new FormData();
   fd.append('file', file);
-
   try {
-    const r = await fetch(API + `/persons/${currentPersonId}/photos/upload`, {method:'POST', body: fd});
+    const r = await fetch(API + `/persons/${currentPersonId}/photos/upload`, { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
-    showModalAlert('add-photo-alert', '✅ Foto cadastrada com sucesso! Embedding gerado.', 'success');
-    loadPersons();
-    getStatus();
-  } catch(e) {
-    showModalAlert('add-photo-alert', 'Erro: ' + e.message, 'error');
-  }
-  btn.disabled = false;
-  btn.innerHTML = 'Enviar foto';
+    showToast('Foto enviada!', `Embedding gerado com sucesso.`, 'success');
+    loadPersons(); getStatus();
+    if (galleryPersonId === currentPersonId) openPersonGallery(currentPersonId);
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+  btn.disabled = false; btn.innerHTML = 'Enviar Arquivo';
 }
 
 async function capturePhoto() {
   if (!currentPersonId) return;
-  const btn = document.querySelector('#modal-add-photo .btn-secondary:last-child');
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  const btn = document.getElementById('btn-capture-photo');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Registrando...';
   try {
-    const r = await fetch(API + `/persons/${currentPersonId}/photos/capture`, {method:'POST'});
+    const r = await fetch(API + `/persons/${currentPersonId}/photos/capture`, { method: 'POST' });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
-    showModalAlert('add-photo-alert', '📷 Foto capturada pela câmera! Embedding gerado.', 'success');
+    showToast('Foto registrada!', `#${data.id} — continue capturando mais ângulos.`, 'success');
     loadPersons(); getStatus();
-  } catch(e) {
-    showModalAlert('add-photo-alert', 'Erro: ' + e.message, 'error');
-  }
-  btn.disabled = false; btn.innerHTML = '📷 Capturar câmera';
+    if (galleryPersonId === currentPersonId) openPersonGallery(currentPersonId);
+    refreshPhotoPreview();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+  btn.disabled = false;
+  btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">photo_camera</span>Registrar esta foto';
 }
 
-// ============================================================ EVENTS
-
+// ====== EVENTS ======
 async function loadEvents() {
   const tbody = document.getElementById('events-tbody');
   const facesOnly = document.getElementById('chk-faces-only').checked;
-  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center"><span class="spin"></span></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px"><span class="spin"></span></td></tr>';
   try {
     const data = await fetch(API + `/events?limit=40&only_with_faces=${facesOnly}`).then(r => r.json());
     const events = data.items || [];
     if (!events.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted)">Sem eventos ainda.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">Nenhum evento encontrado.</td></tr>';
       return;
     }
-    tbody.innerHTML = events.map(e => {
-      const d = new Date(e.timestamp);
-      const dt = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR');
-      const faceBadge = e.face_count > 0
-        ? `<span class="badge badge-green">${e.face_count} rosto(s)</span>`
-        : `<span class="badge badge-red">0</span>`;
-      const action = e.face_count > 0
-        ? `<button class="btn btn-secondary btn-sm" onclick="showFaces(${e.id}, '${dt}')">👁 Ver rostos</button>`
-        : `<span style="color:var(--muted)">—</span>`;
+    // Carrega detalhes em paralelo para eventos com rostos
+    const eventsWithFaces = events.filter(e => e.face_count > 0);
+    const details = await Promise.all(
+      eventsWithFaces.map(e => fetch(API + `/events/${e.id}`).then(r => r.json()).catch(() => null))
+    );
+    const detailMap = {};
+    eventsWithFaces.forEach((e, i) => { if (details[i]) detailMap[e.id] = details[i]; });
+
+    tbody.innerHTML = events.map(ev => {
+        const d = parseTS(ev.timestamp);
+        const hora = d.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      const det = detailMap[ev.id];
+      const faces = det?.faces || [];
+
+      let cropsHtml = '';
+      let nameHtml = '<span class="ev-name uk" style="font-size:12px">—</span>';
+      let subtypeHtml = '';
+
+      // Rostos que podem ser identificados (têm crop + embedding e ainda sem nome)
+      let assignableFaces = [];
+
+      if (faces.length) {
+        cropsHtml = `<div class="event-crops">` + faces.map(f => {
+          const status = f.person_name ? (f.category === 'blacklist' ? 'c-blacklist' : f.category === 'vip' ? 'c-vip' : 'c-unknown') : 'c-unknown';
+          const hasCrop = !!f.crop_path;
+          const canAssign = hasCrop && f.has_embedding;
+          const badgeText = f.person_name ? esc(f.person_name.slice(0, 12)) : '?';
+          const badgeClass = f.category === 'blacklist' ? 'cb-bl' : f.category === 'vip' ? 'cb-vip' : 'cb-ok';
+          const imgEl = hasCrop
+            ? `<img class="event-crop ${status}" src="${API}/events/${ev.id}/faces/${f.id}/crop" alt="" loading="lazy" onerror="this.className='event-crop c-ph'"/>`
+            : `<div class="event-crop c-ph" style="display:flex;align-items:center;justify-content:center;font-size:20px">👤</div>`;
+          if (canAssign && !f.person_name) assignableFaces.push({ evId: ev.id, faceId: f.id });
+          return `<div class="ecw">${imgEl}<span class="crop-badge ${badgeClass}">${badgeText}</span></div>`;
+        }).join('') + `</div>`;
+
+        // Nome/Status da linha
+        const firstMatched = faces.find(f => f.person_name);
+        if (firstMatched) {
+          const isbl = firstMatched.category === 'blacklist';
+          nameHtml = `<div class="ev-name ${isbl ? 'bl' : ''}">${esc(firstMatched.person_name)}</div>`;
+          subtypeHtml = `<div class="ev-sub">${firstMatched.category || 'reconhecido'}</div>`;
+        } else {
+          nameHtml = `<div class="ev-name uk">Desconhecido</div>`;
+          subtypeHtml = `<div class="ev-sub">${faces.length} rosto(s)</div>`;
+        }
+      } else if (!facesOnly) {
+        cropsHtml = `<span style="color:var(--muted);font-size:11px">Sem rostos</span>`;
+      }
+
+      // Botão "+ Identificar" na coluna Ações
+      let assignBtn = '';
+      if (assignableFaces.length === 1) {
+        assignBtn = `<button class="btn btn-primary btn-sm" style="font-size:11px" title="Identificar rosto desconhecido"
+          onclick="openAssign(${assignableFaces[0].evId},${assignableFaces[0].faceId})">
+          <span class="material-symbols-outlined" style="font-size:14px">person_add</span>
+        </button>`;
+      } else if (assignableFaces.length > 1) {
+        const facesB64 = btoa(JSON.stringify(assignableFaces));
+        assignBtn = `<button class="btn btn-primary btn-sm" style="font-size:11px" title="Identificar rostos desconhecidos"
+          onclick="openFacePicker(${ev.id}, '${facesB64}')">
+          <span class="material-symbols-outlined" style="font-size:14px">person_add</span>
+          <span style="font-size:10px">${assignableFaces.length}</span>
+        </button>`;
+      }
+
+      const cameraLabel = ev.camera_label || '—';
       return `<tr>
-        <td style="color:var(--muted)">#${e.id}</td>
-        <td>${dt}</td>
-        <td>${faceBadge}</td>
-        <td style="color:var(--muted)">${e.inference_ms?.toFixed(0)}ms</td>
-        <td>${action}</td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap">${hora}</td>
+        <td>${cropsHtml}</td>
+        <td>${nameHtml}${subtypeHtml}</td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${cameraLabel}</td>
+        <td style="white-space:nowrap">
+          <div style="display:flex;gap:4px;align-items:center">
+            <button class="btn btn-ghost btn-sm" style="font-size:11px" title="Ver snapshot" onclick="openEventDetail(${ev.id})">
+              <span class="material-symbols-outlined" style="font-size:14px">visibility</span>
+            </button>
+            ${assignBtn}
+          </div>
+        </td>
       </tr>`;
     }).join('');
   } catch(ex) {
-    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">${ex.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--danger);padding:14px">${ex.message}</td></tr>`;
   }
 }
 
-async function showFaces(eventId, label) {
-  const panel = document.getElementById('faces-panel');
-  const grid  = document.getElementById('faces-grid');
-  const title = document.getElementById('faces-panel-title');
-  title.textContent = `Rostos — Evento #${eventId} (${label})`;
-  grid.innerHTML = '<span class="spin"></span>';
-  panel.style.display = 'block';
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  try {
-    const ev = await fetch(API + `/events/${eventId}`).then(r => r.json());
-    if (!ev.faces || !ev.faces.length) {
-      grid.innerHTML = '<span style="color:var(--muted)">Nenhum rosto neste evento.</span>';
-      return;
-    }
-    grid.innerHTML = ev.faces.map(f => {
-      const hasCrop = !!f.crop_path;
-      const img = hasCrop
-        ? `<img src="${API}/events/${eventId}/faces/${f.id}/crop" style="width:100px;height:100px;object-fit:cover;border-radius:6px;border:2px solid var(--border)"/>`
-        : `<div style="width:100px;height:100px;background:var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:28px">👤</div>`;
-      const btn = hasCrop && f.has_embedding
-        ? `<button class="btn btn-danger btn-sm" style="margin-top:6px;width:100%" onclick="openAssign(${eventId}, ${f.id})">+ Atribuir</button>`
-        : `<div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">Sem crop</div>`;
-      return `<div style="display:flex;flex-direction:column;align-items:center">
-        ${img}
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">${(f.confidence*100).toFixed(0)}% conf.</div>
-        ${btn}
-      </div>`;
-    }).join('');
-  } catch(e) {
-    grid.innerHTML = `<span style="color:var(--danger)">${e.message}</span>`;
-  }
+async function openEventDetail(eventId) {
+  window.open(`${API}/events/${eventId}/snapshot`, '_blank');
 }
 
-function closeFacesPanel() {
-  document.getElementById('faces-panel').style.display = 'none';
+// ====== ASSIGN ======
+function openFacePicker(eventId, facesB64) {
+  let faces;
+  try { faces = JSON.parse(atob(facesB64)); } catch(e) { return; }
+  const list = document.getElementById('face-picker-list');
+  list.innerHTML = faces.map((f, i) => `
+    <div style="cursor:pointer;text-align:center" onclick="closeModal('modal-face-picker');openAssign(${f.evId},${f.faceId})">
+      <img src="${API}/events/${f.evId}/faces/${f.faceId}/crop"
+        style="width:80px;height:80px;object-fit:cover;border-radius:var(--r-lg);border:2px solid var(--border);transition:border-color .2s"
+        onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
+        onerror="this.style.display='none'" alt="Rosto ${i+1}"/>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Rosto ${i+1}</div>
+    </div>`).join('');
+  openModal('modal-face-picker');
 }
-
-// ============================================================ ASSIGN FACE
-
-let _assignEventId = null;
-let _assignFaceId  = null;
 
 async function openAssign(eventId, faceId) {
   _assignEventId = eventId;
-  _assignFaceId  = faceId;
-
-  // Preview do crop
+  _assignFaceId = faceId;
   document.getElementById('assign-crop-preview').src =
     `${API}/events/${eventId}/faces/${faceId}/crop?t=${Date.now()}`;
   document.getElementById('assign-alert').innerHTML = '';
   document.getElementById('assign-name').value = '';
   document.getElementById('assign-obs').value = '';
   switchAssignTab('new');
-
-  // Carrega lista de pessoas existentes
   try {
     const persons = await fetch(API + '/persons?active_only=false&limit=200').then(r => r.json());
     const sel = document.getElementById('assign-person-select');
@@ -798,109 +1511,126 @@ async function openAssign(eventId, faceId) {
       `<option value="${p.id}">${esc(p.name)} (${p.category})</option>`
     ).join('') || '<option value="">Nenhuma pessoa cadastrada</option>';
   } catch(_) {}
-
   openModal('modal-assign-face');
 }
 
 function switchAssignTab(tab) {
-  document.getElementById('assign-panel-new').style.display      = tab === 'new'      ? 'block' : 'none';
-  document.getElementById('assign-panel-existing').style.display = tab === 'existing' ? 'block' : 'none';
-  document.getElementById('tab-new').className      = 'btn btn-sm ' + (tab === 'new'      ? 'btn-primary' : 'btn-secondary');
-  document.getElementById('tab-existing').className = 'btn btn-sm ' + (tab === 'existing' ? 'btn-primary' : 'btn-secondary');
+  document.getElementById('tab-new').classList.toggle('active', tab === 'new');
+  document.getElementById('tab-existing').classList.toggle('active', tab === 'existing');
+  document.getElementById('assign-panel-new').style.display = tab === 'new' ? '' : 'none';
+  document.getElementById('assign-panel-existing').style.display = tab === 'existing' ? '' : 'none';
 }
 
 async function submitAssignFace() {
   if (!_assignEventId || !_assignFaceId) return;
-
   const isNew = document.getElementById('assign-panel-new').style.display !== 'none';
   let body = {};
-
   if (isNew) {
     const name = document.getElementById('assign-name').value.trim();
-    if (!name) { showModalAlert('assign-alert', 'Nome obrigatório.', 'error'); return; }
-    body = {
-      name,
-      category:    document.getElementById('assign-category').value,
-      observation: document.getElementById('assign-obs').value.trim() || null,
-    };
+    if (!name) { showToast('Atenção', 'Nome obrigatório.', 'warn'); return; }
+    body = { name, category: document.getElementById('assign-category').value, observation: document.getElementById('assign-obs').value.trim() || null };
   } else {
     const pid = parseInt(document.getElementById('assign-person-select').value);
-    if (!pid) { showModalAlert('assign-alert', 'Selecione uma pessoa.', 'error'); return; }
+    if (!pid) { showToast('Atenção', 'Selecione uma pessoa.', 'warn'); return; }
     body = { person_id: pid };
   }
-
   try {
     const r = await fetch(API + `/events/${_assignEventId}/faces/${_assignFaceId}/assign`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
-
-    showModalAlert('assign-alert',
-      `✅ <strong>${esc(data.person_name)}</strong> cadastrado(a)! Cache: ${data.persons_in_cache} pessoa(s).`,
-      'success'
-    );
-    getStatus();
-    loadPersons();
-    setTimeout(() => closeModal('modal-assign-face'), 1800);
-  } catch(e) {
-    showModalAlert('assign-alert', 'Erro: ' + e.message, 'error');
-  }
+    closeModal('modal-assign-face');
+    showToast('Vinculado!', `${data.person_name} cadastrado com sucesso.`, 'success');
+    loadPersons(); getStatus(); loadEvents();
+    if (isNew) setTimeout(() => openAddPhoto(data.person_id, data.person_name), 400);
+  } catch(e) { showToast('Erro', e.message, 'error'); }
 }
 
-// ============================================================ SETTINGS / CALIBRATION
+// ====== CALIBRATION ======
+async function loadThreshold() {
+  try {
+    const data = await fetch(API + '/recognition/threshold').then(r => r.json());
+    const v = data.threshold ?? 0.62;
+    document.getElementById('slider-threshold').value = v;
+    document.getElementById('label-threshold').textContent = v.toFixed(2);
+  } catch(e) {}
+}
 
 function updateThresholdLabel(v) {
   document.getElementById('label-threshold').textContent = parseFloat(v).toFixed(2);
 }
 
-async function loadThreshold() {
-  try {
-    const r = await fetch(API + '/recognition/threshold');
-    if (r.ok) {
-      const d = await r.json();
-      document.getElementById('slider-threshold').value = d.threshold;
-      updateThresholdLabel(d.threshold);
-    }
-  } catch(_) {}
-}
-
 async function saveThreshold() {
-  const val = parseFloat(document.getElementById('slider-threshold').value);
+  const v = parseFloat(document.getElementById('slider-threshold').value);
+  const statusEl = document.getElementById('threshold-status');
+  statusEl.innerHTML = '<span class="spin"></span> Salvando...';
   try {
-    const r = await fetch(API + '/recognition/threshold', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({threshold: val}),
-    });
-    const d = await r.json();
-    const el = document.getElementById('threshold-status');
-    el.innerHTML = r.ok
-      ? `<span style="color:var(--success)">✅ Threshold atualizado para ${val.toFixed(2)}</span>`
-      : `<span style="color:var(--danger)">${d.detail}</span>`;
+    // Persiste no banco (via /settings) E aplica em runtime (via /recognition/threshold)
+    await Promise.all([
+      fetch(API + '/recognition/threshold', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ threshold: v }),
+      }),
+      fetch(API + '/settings', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ recognition_threshold: v }),
+      }),
+    ]);
+    statusEl.innerHTML = `<div class="alert alert-success">Threshold salvo: ${v.toFixed(2)}</div>`;
+    showToast('Threshold salvo', `Novo valor: ${v.toFixed(2)}`, 'success');
   } catch(e) {
-    document.getElementById('threshold-status').innerHTML = `<span style="color:var(--danger)">${e.message}</span>`;
+    statusEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+    showToast('Erro', e.message, 'error');
   }
 }
 
 async function loadCacheStatus() {
+  const el = document.getElementById('cache-status');
+  const mg = document.getElementById('metric-grid');
+  el.textContent = 'Verificando...';
   try {
-    const d = await fetch(API + '/detection/status').then(r => r.json());
-    document.getElementById('cache-status').innerHTML =
-      `<strong style="color:var(--accent)">${d.persons_in_cache}</strong> pessoa(s) com embedding no cache de reconhecimento.`;
-  } catch(_) {
-    document.getElementById('cache-status').textContent = 'Erro ao consultar.';
+    const [cache, det] = await Promise.all([
+      fetch(API + '/recognition/cache-status').then(r => r.json()),
+      fetch(API + '/detection/status').then(r => r.json()),
+    ]);
+    el.style.display = 'none';
+    mg.style.display = 'grid';
+    document.getElementById('m-cache').textContent = det.persons_in_cache ?? '—';
+    document.getElementById('m-persons').textContent = cache.total_persons ?? '—';
+    document.getElementById('m-alerts').textContent = det.active_alerts ?? '0';
+  } catch(e) {
+    el.textContent = e.message;
+    el.style.display = '';
+    mg.style.display = 'none';
   }
 }
 
-// Teste de foto avulsa
+async function runPhotoTest() {
+  const file = document.getElementById('test-file').files[0];
+  if (!file) return;
+  const btn = document.getElementById('btn-test-photo');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch(API + '/recognition/test-photo', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+    const el = document.getElementById('test-result');
+    if (data.matched) {
+      el.innerHTML = `<div class="alert alert-success">✓ <strong>${esc(data.person_name)}</strong> — ${data.category} · ${data.confidence?.toFixed(1)}% · dist ${data.distance?.toFixed(3)}</div>`;
+    } else {
+      el.innerHTML = `<div class="alert alert-info">? Desconhecido — dist ${data.distance?.toFixed(3)} (threshold ${data.threshold?.toFixed(2)})</div>`;
+    }
+  } catch(e) {
+    document.getElementById('test-result').innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+  btn.disabled = false; btn.innerHTML = 'Testar Foto';
+}
+
 function previewTest(input) {
   if (!input.files[0]) return;
-  const url = URL.createObjectURL(input.files[0]);
   const img = document.getElementById('test-preview');
-  img.src = url;
+  img.src = URL.createObjectURL(input.files[0]);
   img.style.display = 'block';
   document.getElementById('test-placeholder').style.display = 'none';
   document.getElementById('btn-test-photo').disabled = false;
@@ -909,65 +1639,354 @@ function previewTest(input) {
 function handleTestDrop(e) {
   e.preventDefault();
   e.currentTarget.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
   document.getElementById('test-file').files = e.dataTransfer.files;
-  previewTest({files: e.dataTransfer.files});
+  previewTest({ files: e.dataTransfer.files });
 }
 
-async function runPhotoTest() {
-  const file = document.getElementById('test-file').files[0];
-  if (!file) return;
-  const btn = document.getElementById('btn-test-photo');
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Testando...';
-
-  // Cria pessoa temporária e apaga depois? Não.
-  // Chama /recognition/test que vamos criar
-  const fd = new FormData();
-  fd.append('file', file);
-
-  try {
-    const r = await fetch(API + '/recognition/test', {method:'POST', body: fd});
-    const data = await r.json();
-    const el = document.getElementById('test-result');
-    if (!r.ok) { el.innerHTML = `<div class="alert alert-error">${data.detail}</div>`; return; }
-
-    if (data.matched) {
-      el.innerHTML = `<div class="alert alert-success">
-        ✅ <strong>${data.person_name}</strong> identificado(a) com ${data.confidence.toFixed(0)}% de confiança.<br>
-        Categoria: ${data.category} | Distância: ${data.distance.toFixed(4)} (threshold: ${data.threshold})
-      </div>`;
-    } else {
-      el.innerHTML = `<div class="alert" style="background:rgba(255,171,0,.08);border:1px solid rgba(255,171,0,.2);color:var(--warn)">
-        ⚠️ Pessoa não identificada. Melhor distância: ${data.distance.toFixed(4)} (threshold: ${data.threshold})
-      </div>`;
-    }
-  } catch(e) {
-    document.getElementById('test-result').innerHTML = `<div class="alert alert-error">${e.message}</div>`;
-  }
-  btn.disabled = false; btn.innerHTML = 'Testar foto';
+// ====== MODAL UTILS ======
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
 }
-
-// ============================================================ MODAL utils
-
-function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) {
+  if (id === 'modal-add-photo') stopPhotoCameraPreview();
   document.getElementById(id).classList.remove('open');
-  const a = document.getElementById(id.replace('modal-', '') + '-alert');
-  if (a) a.innerHTML = '';
 }
 document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
 });
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
+  }
+});
 
-function showModalAlert(id, msg, type) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+// ====== TOAST ======
+let _toastTimer = null;
+function showToast(title, msg, type = 'info') {
+  const toast = document.getElementById('toast');
+  const iconWrap = document.getElementById('toast-icon-wrap');
+  const icons = { success: { icon: '✓', bg: 'rgba(0,228,117,.2)', color: 'var(--success)' },
+    error: { icon: '!', bg: 'rgba(147,0,10,.4)', color: 'var(--danger)' },
+    warn: { icon: '⚠', bg: 'rgba(255,171,0,.2)', color: 'var(--warn)' },
+    info: { icon: 'i', bg: 'rgba(0,229,255,.15)', color: 'var(--accent)' } };
+  const cfg = icons[type] || icons.info;
+  iconWrap.style.background = cfg.bg;
+  iconWrap.style.color = cfg.color;
+  iconWrap.textContent = cfg.icon;
+  document.getElementById('toast-title').textContent = title;
+  document.getElementById('toast-msg').textContent = msg;
+  toast.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { toast.classList.remove('show'); _toastTimer = null; }, 4000);
 }
 
-function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// ====== UTILS ======
+function parseTS(ts) {
+  // Garante que timestamps sem info de timezone sejam tratados como UTC
+  if (!ts) return new Date();
+  if (!ts.endsWith('Z') && !ts.includes('+') && ts.length >= 19) ts += 'Z';
+  return new Date(ts);
+}
 
-// ============================================================ INIT
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ====== CONFIGURAÇÕES ======
+async function loadConfigPage() {
+  await Promise.all([loadRtspCameras(), loadGeneralSettings(), checkWhatsappStatus()]);
+  // loadGeneralSettings já carrega o threshold do banco; fallback para API de threshold
+  const sliderEl = document.getElementById('slider-threshold');
+  if (sliderEl && parseFloat(sliderEl.value) === 0.45) await loadThreshold();
+}
+
+// Lista de números WhatsApp em memória (usado pela UI)
+let _waNumbers = [];
+
+function renderWaNumbers() {
+  const list = document.getElementById('wa-numbers-list');
+  if (!list) return;
+  if (!_waNumbers.length) {
+    list.innerHTML = '<span style="font-size:11px;color:var(--muted)">Nenhum número cadastrado.</span>';
+    return;
+  }
+  list.innerHTML = _waNumbers.map((n, i) => `
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="flex:1;font-family:var(--font-mono);font-size:12px;background:var(--surface-2);padding:6px 10px;border-radius:var(--r-md)">${esc(n)}</span>
+      <button class="btn btn-ghost btn-sm" style="padding:4px 8px;color:var(--danger)" onclick="removeWaNumber(${i})" title="Remover">
+        <span class="material-symbols-outlined" style="font-size:15px">delete</span>
+      </button>
+    </div>`).join('');
+}
+
+function addWaNumber() {
+  const inp = document.getElementById('wa-number-input');
+  const v = inp.value.trim();
+  if (!v) return;
+  if (!v.startsWith('+')) { showToast('Aviso', 'Use o formato internacional: +5511...', 'warning'); return; }
+  if (_waNumbers.includes(v)) { showToast('Aviso', 'Número já cadastrado.', 'warning'); return; }
+  _waNumbers.push(v);
+  renderWaNumbers();
+  inp.value = '';
+}
+
+function removeWaNumber(idx) {
+  _waNumbers.splice(idx, 1);
+  renderWaNumbers();
+}
+
+async function loadGeneralSettings() {
+  try {
+    const data = await fetch(API + '/settings').then(r => r.json());
+    document.getElementById('cfg-detection-auto').checked = data.detection_auto === 'true';
+    const fps = parseFloat(data.detection_fps) || 1.0;
+    document.getElementById('cfg-detection-fps').value = fps;
+    document.getElementById('cfg-fps-val').textContent = fps.toFixed(1);
+    const cooldown = parseInt(data.alert_cooldown_seconds) || 300;
+    document.getElementById('cfg-alert-cooldown').value = cooldown;
+    const dedup = parseInt(data.event_dedup_seconds) || 30;
+    document.getElementById('cfg-event-dedup').value = dedup;
+    document.getElementById('cfg-timezone').value = data.app_timezone || 'America/Maceio';
+    // Threshold
+    const thr = parseFloat(data.recognition_threshold) || 0.45;
+    const sliderEl = document.getElementById('slider-threshold');
+    if (sliderEl) { sliderEl.value = thr; document.getElementById('label-threshold').textContent = thr.toFixed(2); }
+    // WhatsApp
+    document.getElementById('cfg-wa-enabled').checked = data.whatsapp_enabled === 'true';
+    document.getElementById('cfg-wa-url').value = data.whatsapp_api_url || '';
+    document.getElementById('cfg-wa-key').value = data.whatsapp_api_key_set ? '••••••••' : '';
+    document.getElementById('cfg-wa-instance').value = data.whatsapp_instance || '';
+    // múltiplos números
+    _waNumbers = (data.whatsapp_notify_numbers || '').split(',').map(s => s.trim()).filter(Boolean);
+    renderWaNumbers();
+  } catch(e) { showToast('Erro', 'Não foi possível carregar configurações', 'error'); }
+}
+
+async function saveDetectionSettings() {
+  const auto = document.getElementById('cfg-detection-auto').checked;
+  const fps = parseFloat(document.getElementById('cfg-detection-fps').value);
+  const cooldown = parseInt(document.getElementById('cfg-alert-cooldown').value) || 300;
+  const dedup = parseInt(document.getElementById('cfg-event-dedup').value) || 30;
+  const tz = (document.getElementById('cfg-timezone').value || '').trim() || 'America/Maceio';
+  try {
+    const r = await fetch(API + '/settings', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ detection_auto: auto, detection_fps: fps, alert_cooldown_seconds: cooldown, event_dedup_seconds: dedup, app_timezone: tz }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    showToast('Salvo', 'Configurações de detecção atualizadas.', 'success');
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+async function saveWhatsappSettings() {
+  const key = document.getElementById('cfg-wa-key').value;
+  const body = {
+    whatsapp_enabled:       document.getElementById('cfg-wa-enabled').checked,
+    whatsapp_api_url:       document.getElementById('cfg-wa-url').value.trim(),
+    whatsapp_instance:      document.getElementById('cfg-wa-instance').value.trim(),
+    whatsapp_notify_numbers: _waNumbers.join(','),
+  };
+  if (key && !key.includes('••••')) body.whatsapp_api_key = key;
+  const statusEl = document.getElementById('wa-save-result');
+  statusEl.innerHTML = '<span class="spin"></span> Salvando...';
+  try {
+    const r = await fetch(API + '/settings', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    statusEl.innerHTML = '<div class="alert alert-success">Configurações salvas!</div>';
+    showToast('Salvo', 'Configurações WhatsApp salvas.', 'success');
+    await checkWhatsappStatus();
+  } catch(e) {
+    statusEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+    showToast('Erro', e.message, 'error');
+  }
+}
+
+async function checkWhatsappStatus() {
+  const badge = document.getElementById('wa-status-badge');
+  if (!badge) return;
+  badge.textContent = '⏳ verificando...';
+  try {
+    const data = await fetch(API + '/settings/whatsapp/status').then(r => r.json());
+    badge.textContent = data.connected ? '● CONECTADO' : '✗ ' + (data.state || 'OFFLINE');
+    badge.style.color = data.connected ? 'var(--success)' : 'var(--danger)';
+  } catch(e) { badge.textContent = '✗ inacessível'; badge.style.color = 'var(--danger)'; }
+}
+
+async function sendWhatsappTest() {
+  const result = document.getElementById('wa-test-result');
+  result.innerHTML = '<span class="spin"></span> Enviando...';
+  const testNum = (document.getElementById('cfg-wa-test-number')?.value || '').trim();
+  const body = testNum ? { number: testNum } : {};
+  try {
+    const r = await fetch(API + '/settings/test/whatsapp', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+    let details = '';
+    if (data.details?.length) {
+      details = '<ul style="margin:4px 0 0;padding-left:16px">' +
+        data.details.map(d => `<li>${esc(d.number)}: ${d.sent ? '✓' : '✗ ' + d.status}</li>`).join('') +
+        '</ul>';
+    }
+    result.innerHTML = `<div class="alert ${data.sent ? 'alert-success' : 'alert-error'}">${data.message}${details}</div>`;
+  } catch(e) { result.innerHTML = `<div class="alert alert-error">${e.message}</div>`; }
+}
+
+// ====== RTSP CAMERAS ======
+async function loadRtspCameras() {
+  const el = document.getElementById('rtsp-cameras-list');
+  el.innerHTML = '<span class="spin"></span>';
+  try {
+    const cameras = await fetch(API + '/settings/cameras').then(r => r.json());
+    const btnAdd = document.getElementById('btn-add-rtsp');
+    if (btnAdd) btnAdd.disabled = cameras.length >= 2;
+    if (!cameras.length) {
+      el.innerHTML = '<p style="font-size:12px;color:var(--muted)">Nenhuma câmera RTSP cadastrada.</p>';
+      return;
+    }
+    el.innerHTML = cameras.map(cam => `
+      <div class="card" style="margin-bottom:10px;padding:14px;border-color:${cam.enabled ? 'var(--border)' : 'rgba(255,255,255,.06)'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-family:var(--font-title);font-weight:700;font-size:13px">${esc(cam.label)}</span>
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">${esc(cam.camera_id)}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="badge ${cam.ready ? 'badge-ok' : 'badge-warn'}" style="font-size:10px">${cam.ready ? '● ONLINE' : '○ OFFLINE'}</span>
+            <span class="badge ${cam.enabled ? 'badge-cyan' : 'badge-warn'}">${cam.enabled ? 'Ativa' : 'Inativa'}</span>
+          </div>
+        </div>
+        <p style="font-family:var(--font-mono);font-size:10px;color:var(--muted);word-break:break-all;margin-bottom:10px">${esc(cam.url)}</p>
+        <div class="btn-row" style="margin-top:0">
+          <button class="btn btn-ghost btn-sm" onclick="testRtspById(${cam.id})">
+            <span class="material-symbols-outlined" style="font-size:14px">wifi_tethering</span>Testar
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleRtspCamera(${cam.id},'${esc(cam.label)}')" id="btn-toggle-rtsp-${cam.id}">
+            <span class="material-symbols-outlined" style="font-size:14px">${cam.enabled ? 'pause_circle' : 'play_circle'}</span>${cam.enabled ? 'Desativar' : 'Ativar'}
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="openEditRtspCamera(${cam.id},'${esc(cam.camera_id)}','${esc(cam.label)}','${esc(cam.url)}')">
+            <span class="material-symbols-outlined" style="font-size:14px">edit</span>Editar
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteRtspCamera(${cam.id},'${esc(cam.label)}')">🗑</button>
+        </div>
+        <div id="rtsp-test-${cam.id}" style="font-size:11px;margin-top:6px"></div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--danger);font-size:12px">${e.message}</span>`;
+  }
+}
+
+function openAddRtspCamera() {
+  document.getElementById('rtsp-edit-id').value = '';
+  document.getElementById('rtsp-camera-id').value = '';
+  document.getElementById('rtsp-label').value = '';
+  document.getElementById('rtsp-url').value = '';
+  document.getElementById('rtsp-modal-title').textContent = 'Adicionar Câmera RTSP';
+  document.getElementById('rtsp-modal-alert').innerHTML = '';
+  document.getElementById('rtsp-test-result').innerHTML = '';
+  openModal('modal-rtsp-camera');
+}
+
+function openEditRtspCamera(id, cameraId, label, url) {
+  document.getElementById('rtsp-edit-id').value = id;
+  document.getElementById('rtsp-camera-id').value = cameraId;
+  document.getElementById('rtsp-label').value = label;
+  document.getElementById('rtsp-url').value = url;
+  document.getElementById('rtsp-modal-title').textContent = 'Editar Câmera RTSP';
+  document.getElementById('rtsp-modal-alert').innerHTML = '';
+  document.getElementById('rtsp-test-result').innerHTML = '';
+  openModal('modal-rtsp-camera');
+}
+
+async function submitRtspCamera() {
+  const editId = document.getElementById('rtsp-edit-id').value;
+  const camId  = document.getElementById('rtsp-camera-id').value.trim();
+  const label  = document.getElementById('rtsp-label').value.trim();
+  const url    = document.getElementById('rtsp-url').value.trim();
+  const alertEl = document.getElementById('rtsp-modal-alert');
+  if (!camId || !label || !url) {
+    alertEl.innerHTML = '<div class="alert alert-error">Todos os campos são obrigatórios.</div>';
+    return;
+  }
+  try {
+    let r;
+    if (editId) {
+      r = await fetch(API + `/settings/cameras/${editId}`, {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ camera_id: camId, label, url }),
+      });
+    } else {
+      r = await fetch(API + '/settings/cameras', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ camera_id: camId, label, url }),
+      });
+    }
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+    closeModal('modal-rtsp-camera');
+    showToast('Câmera salva', `${label} — ${data.registry_status || ''}`, 'success');
+    loadRtspCameras();
+  } catch(e) {
+    alertEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+async function testRtspUrlModal() {
+  const url = document.getElementById('rtsp-url').value.trim();
+  const el = document.getElementById('rtsp-test-result');
+  if (!url) { el.innerHTML = '<span style="color:var(--warn)">Digite a URL primeiro.</span>'; return; }
+  el.innerHTML = '<span class="spin"></span> Testando (até 6s)...';
+  try {
+    const data = await fetch(API + '/settings/cameras/test-url', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ url }),
+    }).then(r => r.json());
+    el.innerHTML = `<div class="alert ${data.online ? 'alert-success' : 'alert-error'}">${data.online ? '✓ ' : '✗ '}${data.message}</div>`;
+  } catch(e) { el.innerHTML = `<div class="alert alert-error">${e.message}</div>`; }
+}
+
+async function testRtspById(id) {
+  const el = document.getElementById(`rtsp-test-${id}`);
+  el.innerHTML = '<span class="spin"></span> Testando...';
+  try {
+    const data = await fetch(API + `/settings/cameras/${id}/test`, { method: 'POST' }).then(r => r.json());
+    el.innerHTML = `<span style="color:${data.online ? 'var(--success)' : 'var(--danger)'}">${data.online ? '✓ ' : '✗ '}${data.message}</span>`;
+  } catch(e) { el.innerHTML = `<span style="color:var(--danger)">${e.message}</span>`; }
+}
+
+async function toggleRtspCamera(id, label) {
+  try {
+    const data = await fetch(API + `/settings/cameras/${id}/toggle`, { method: 'POST' }).then(r => r.json());
+    showToast(label, data.enabled ? 'Câmera ativada.' : 'Câmera desativada.', 'info');
+    loadRtspCameras();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+async function deleteRtspCamera(id, label) {
+  if (!confirm(`Remover "${label}" permanentemente?`)) return;
+  try {
+    await fetch(API + `/settings/cameras/${id}`, { method: 'DELETE' });
+    showToast('Removida', `${label} foi removida.`, 'info');
+    loadRtspCameras();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+// ====== INIT ======
 getStatus();
+loadActiveAlerts();
+startLive();
+
+// Auto-refresh eventos a cada 15s quando na aba eventos
+setInterval(() => {
+  if (document.querySelector('.nav-item.active')?.dataset.page === 'events') loadEvents();
+}, 15000);
+
+// Auto-refresh alertas blacklist a cada 30s
+setInterval(() => loadActiveAlerts(), 30000);
 </script>
 </body>
 </html>

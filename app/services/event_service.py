@@ -19,12 +19,18 @@ async def save_detection_event(
     result: DetectionResult,
     snapshot_path: Optional[Path] = None,
     face_crops: Optional[list[dict]] = None,
-) -> DetectionEvent:
+    camera_id: Optional[str] = None,
+    camera_label: Optional[str] = None,
+) -> tuple[DetectionEvent, list[int]]:
     """
     Persiste um evento de detecção e seus rostos no banco.
 
     face_crops: lista paralela a result.faces com dicts opcionais:
         {"crop_path": str, "embedding": bytes}
+
+    Retorna (event, face_ids) onde face_ids é a lista de IDs dos rostos
+    na mesma ordem de result.faces, coletada dentro da sessão para evitar
+    lazy load fora do contexto da sessão.
     """
     async with get_session() as session:
         event = DetectionEvent(
@@ -34,20 +40,26 @@ async def save_detection_event(
             frame_width=result.frame_width,
             frame_height=result.frame_height,
             snapshot_path=str(snapshot_path) if snapshot_path else None,
+            camera_id=camera_id,
+            camera_label=camera_label,
         )
         session.add(event)
         await session.flush()
 
+        face_ids: list[int] = []
         for i, face in enumerate(result.faces):
             crop_data = (face_crops[i] if face_crops and i < len(face_crops) else None) or {}
-            session.add(DetectedFaceRecord(
+            face_record = DetectedFaceRecord(
                 event_id=event.id,
                 x1=face.x1, y1=face.y1,
                 x2=face.x2, y2=face.y2,
                 confidence=face.confidence,
                 crop_path=crop_data.get("crop_path"),
                 embedding=crop_data.get("embedding"),
-            ))
+            )
+            session.add(face_record)
+            await session.flush()
+            face_ids.append(face_record.id)
 
         await session.commit()
         await session.refresh(event)
@@ -56,7 +68,7 @@ async def save_detection_event(
             "Evento #{} salvo — {} rosto(s) em {}ms",
             event.id, event.face_count, event.inference_ms,
         )
-        return event
+        return event, face_ids
 
 
 async def list_events(
