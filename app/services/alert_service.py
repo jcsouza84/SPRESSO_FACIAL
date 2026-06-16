@@ -89,17 +89,13 @@ class AlertService:
             event_id=event_id,
         )
 
-        existing = await self.get_active_alert_for_person(rec.person_id)
-        if existing:
-            return existing
-
         cooldown = await self._get_cooldown_seconds()
         if not self._cooldown_elapsed(rec.person_id, cooldown):
             logger.debug(
                 "Cooldown ativo para {} — alerta não criado",
                 rec.person_name,
             )
-            return None
+            return await self.get_active_alert_for_person(rec.person_id)
 
         now = datetime.now(timezone.utc)
         message = f"⚠️ ALERTA BLACKLIST: {rec.person_name} identificado(a)"
