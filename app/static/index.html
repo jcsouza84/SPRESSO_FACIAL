@@ -366,15 +366,30 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 
   <!-- ===== EVENTOS ===== -->
   <div class="page" id="page-events">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <h2 style="font-family:var(--font-title);font-size:18px;font-weight:700">Eventos de Detecção</h2>
-      <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <input type="date" id="ev-date-filter"
+          style="font-size:12px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);height:32px"
+          onchange="loadEvents(true)"/>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0;flex-direction:row">
-          <input type="checkbox" id="chk-faces-only" checked onchange="loadEvents()" style="width:auto;background:none;border:none;padding:0"/>
+          <input type="checkbox" id="chk-faces-only" checked onchange="loadEvents(true)" style="width:auto;background:none;border:none;padding:0"/>
           Só com rostos
         </label>
-        <button class="btn btn-ghost btn-sm" onclick="loadEvents()">
+        <button class="btn btn-ghost btn-sm" onclick="loadEvents(true)">
           <span class="material-symbols-outlined" style="font-size:16px">refresh</span>Atualizar
+        </button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+      <span id="ev-summary" style="font-size:12px;color:var(--muted)"></span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button id="ev-btn-prev" class="btn btn-ghost btn-sm" onclick="evChangePage(-1)" disabled>
+          <span class="material-symbols-outlined" style="font-size:16px">chevron_left</span>Anterior
+        </button>
+        <span id="ev-page-info" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
+        <button id="ev-btn-next" class="btn btn-ghost btn-sm" onclick="evChangePage(1)" disabled>
+          Próxima<span class="material-symbols-outlined" style="font-size:16px">chevron_right</span>
         </button>
       </div>
     </div>
@@ -839,7 +854,7 @@ function switchPage(page) {
     {monitor:'Monitor',persons:'Pessoas',events:'Eventos',settings:'Calibração',config:'Configurações'}[page] || page;
   if (document.getElementById('modal-add-photo').classList.contains('open')) closeModal('modal-add-photo');
   if (page === 'persons') loadPersons();
-  if (page === 'events') loadEvents();
+  if (page === 'events') loadEvents(true);
   if (page === 'settings') { loadCacheStatus(); loadThreshold(); }
   if (page === 'config') loadConfigPage();
 }
@@ -1378,12 +1393,41 @@ async function capturePhoto() {
 }
 
 // ====== EVENTS ======
-async function loadEvents() {
+// Estado de paginação de eventos
+const _evState = { offset: 0, limit: 100, total: 0 };
+
+function evChangePage(dir) {
+  _evState.offset = Math.max(0, _evState.offset + dir * _evState.limit);
+  loadEvents(false);
+}
+
+function _evTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function loadEvents(resetPage = false) {
+  if (resetPage) _evState.offset = 0;
+
+  // Preenche datepicker com hoje na primeira vez
+  const dateInput = document.getElementById('ev-date-filter');
+  if (!dateInput.value) dateInput.value = _evTodayStr();
+
   const tbody = document.getElementById('events-tbody');
   const facesOnly = document.getElementById('chk-faces-only').checked;
+  const dateParam = dateInput.value ? `&date=${dateInput.value}` : '';
   tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px"><span class="spin"></span></td></tr>';
   try {
-    const data = await fetch(API + `/events?limit=40&only_with_faces=${facesOnly}`).then(r => r.json());
+    const data = await fetch(API + `/events?limit=${_evState.limit}&offset=${_evState.offset}&only_with_faces=${facesOnly}${dateParam}`).then(r => r.json());
+    _evState.total = data.total || 0;
+
+    // Atualiza controles de paginação
+    const totalPages = Math.ceil(_evState.total / _evState.limit) || 1;
+    const currentPage = Math.floor(_evState.offset / _evState.limit) + 1;
+    document.getElementById('ev-summary').textContent = `${_evState.total} evento(s) encontrado(s)`;
+    document.getElementById('ev-page-info').textContent = `Página ${currentPage} de ${totalPages}`;
+    document.getElementById('ev-btn-prev').disabled = _evState.offset === 0;
+    document.getElementById('ev-btn-next').disabled = (_evState.offset + _evState.limit) >= _evState.total;
     const events = data.items || [];
     if (!events.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">Nenhum evento encontrado.</td></tr>';

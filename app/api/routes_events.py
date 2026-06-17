@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from datetime import date as DateType
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
@@ -60,13 +62,21 @@ class AssignFaceBody(BaseModel):
 
 @router.get("", response_model=EventListResponse)
 async def get_events(
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     only_with_faces: bool = Query(default=False),
+    date: Optional[DateType] = Query(default=None, description="Filtrar por dia (YYYY-MM-DD, UTC)"),
 ) -> EventListResponse:
-    """Lista eventos de detecção paginados, do mais recente ao mais antigo."""
-    events = await list_events(limit=limit, offset=offset, only_with_faces=only_with_faces)
-    total = await count_events(only_with_faces=only_with_faces)
+    """Lista eventos de detecção paginados, do mais recente ao mais antigo.
+
+    Use ?date=2026-06-16 para filtrar por um dia específico.
+    """
+    events = await list_events(
+        limit=limit, offset=offset,
+        only_with_faces=only_with_faces,
+        date_filter=date,
+    )
+    total = await count_events(only_with_faces=only_with_faces, date_filter=date)
     return EventListResponse(
         total=total, limit=limit, offset=offset,
         items=[EventResponse(**e.to_dict()) for e in events],
@@ -118,6 +128,23 @@ async def get_face_crop(event_id: int, face_id: int):
     if not p.exists():
         raise HTTPException(status_code=404, detail="Arquivo de crop não encontrado no disco")
 
+    return FileResponse(str(p), media_type="image/jpeg")
+
+
+@router.get(
+    "/{event_id}/snapshot",
+    responses={200: {"content": {"image/jpeg": {}}}},
+)
+async def get_event_snapshot(event_id: int):
+    """Retorna o frame anotado de um evento de detecção."""
+    event = await get_event_by_id(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail=f"Evento {event_id} não encontrado")
+    if not event.snapshot_path:
+        raise HTTPException(status_code=404, detail="Snapshot não disponível")
+    p = Path(event.snapshot_path)
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado no disco")
     return FileResponse(str(p), media_type="image/jpeg")
 
 

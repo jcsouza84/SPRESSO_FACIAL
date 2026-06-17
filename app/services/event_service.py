@@ -2,11 +2,11 @@
 Serviço responsável por persistir eventos de detecção no banco de dados.
 Recebe um DetectionResult + path do snapshot e grava no SQLite.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date as DateType
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy import select, desc, func
+from sqlalchemy import select, desc, func, and_
 from sqlalchemy.orm import selectinload
 
 from app.detection.face_detector import DetectionResult
@@ -71,20 +71,47 @@ async def save_detection_event(
         return event, face_ids
 
 
+def _date_filters(
+    only_with_faces: bool,
+    date_filter: Optional[DateType],
+) -> list:
+    """Monta lista de cláusulas WHERE para os filtros comuns de eventos."""
+    clauses = []
+    if only_with_faces:
+        clauses.append(DetectionEvent.face_count > 0)
+    if date_filter:
+        day_start = datetime(
+            date_filter.year, date_filter.month, date_filter.day, 0, 0, 0,
+            tzinfo=timezone.utc,
+        )
+        day_end = datetime(
+            date_filter.year, date_filter.month, date_filter.day, 23, 59, 59,
+            999999, tzinfo=timezone.utc,
+        )
+        clauses.append(DetectionEvent.timestamp >= day_start)
+        clauses.append(DetectionEvent.timestamp <= day_end)
+    return clauses
+
+
 async def list_events(
-    limit: int = 50,
+    limit: int = 100,
     offset: int = 0,
     only_with_faces: bool = False,
+    date_filter: Optional[DateType] = None,
 ) -> list[DetectionEvent]:
-    """Retorna eventos paginados, do mais recente ao mais antigo."""
+    """Retorna eventos paginados, do mais recente ao mais antigo.
+
+    date_filter: se informado, restringe ao dia UTC correspondente.
+    """
     async with get_session() as session:
         stmt = (
             select(DetectionEvent)
             .options(selectinload(DetectionEvent.faces))
             .order_by(desc(DetectionEvent.timestamp))
         )
-        if only_with_faces:
-            stmt = stmt.where(DetectionEvent.face_count > 0)
+        clauses = _date_filters(only_with_faces, date_filter)
+        if clauses:
+            stmt = stmt.where(and_(*clauses))
         stmt = stmt.offset(offset).limit(limit)
         result = await session.execute(stmt)
         return list(result.scalars().all())
@@ -102,11 +129,15 @@ async def get_event_by_id(event_id: int) -> Optional[DetectionEvent]:
         return result.scalar_one_or_none()
 
 
-async def count_events(only_with_faces: bool = False) -> int:
-    """Retorna o total de eventos registrados."""
+async def count_events(
+    only_with_faces: bool = False,
+    date_filter: Optional[DateType] = None,
+) -> int:
+    """Retorna o total de eventos registrados, respeitando os filtros."""
     async with get_session() as session:
         stmt = select(func.count()).select_from(DetectionEvent)
-        if only_with_faces:
-            stmt = stmt.where(DetectionEvent.face_count > 0)
+        clauses = _date_filters(only_with_faces, date_filter)
+        if clauses:
+            stmt = stmt.where(and_(*clauses))
         result = await session.execute(stmt)
         return result.scalar_one()
