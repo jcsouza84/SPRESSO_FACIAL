@@ -268,22 +268,31 @@ async def test_whatsapp(body: WhatsappTestBody | None = None) -> dict:
 # Helpers internos
 # ---------------------------------------------------------------------------
 
+def _build_camera(url: str, camera_id: str, label: str):
+    """Instancia a classe de câmera correta baseado no esquema da URL."""
+    if url.lower().startswith("onvif://"):
+        from app.camera.sources.onvif_cam import ONVIFCamera
+        return ONVIFCamera(url=url, camera_id=camera_id, label=label)
+    from app.camera.sources.rtsp import RTSPCamera
+    return RTSPCamera(url=url, camera_id=camera_id, label=label)
+
+
 async def _register_rtsp_in_registry(camera_id: str, label: str, url: str) -> str:
-    """Registra câmera RTSP no registry (thread separada para não bloquear)."""
+    """Registra câmera IP/ONVIF no registry."""
     try:
         _unregister_rtsp(camera_id)
-        from app.camera.sources.rtsp import RTSPCamera
-        cam = RTSPCamera(url=url, camera_id=camera_id, label=label)
+        cam = _build_camera(url, camera_id, label)
         cam.open()
         camera_registry.register(cam)
-        # aguarda até 3s para receber primeiro frame
-        for _ in range(30):
+        # ONVIF leva mais tempo para descobrir URI e abrir stream
+        wait = 80 if url.lower().startswith("onvif://") else 30
+        for _ in range(wait):
             await asyncio.sleep(0.1)
             if cam.is_ready:
                 return "online"
         return "connecting"
     except Exception as e:
-        logger.warning("Erro ao registrar câmera RTSP {}: {}", camera_id, e)
+        logger.warning("Erro ao registrar câmera {}: {}", camera_id, e)
         return f"error: {e}"
 
 
@@ -299,7 +308,10 @@ def _unregister_rtsp(camera_id: str) -> None:
 
 
 async def _test_rtsp_url(url: str) -> dict:
-    """Testa conectividade RTSP em thread separada (cv2 é síncrono)."""
+    """Testa conectividade RTSP/ONVIF em thread separada (cv2 é síncrono)."""
+    if url.lower().startswith("onvif://"):
+        return await _test_onvif_url(url)
+
     def _try_open():
         import cv2
         cap = cv2.VideoCapture(url)
@@ -319,6 +331,37 @@ async def _test_rtsp_url(url: str) -> dict:
         return {"online": ok, "message": msg}
     except asyncio.TimeoutError:
         return {"online": False, "message": "Timeout — câmera não respondeu em 6s"}
+    except Exception as e:
+        return {"online": False, "message": str(e)}
+
+
+async def _test_onvif_url(url: str) -> dict:
+    """Testa câmera ONVIF: verifica autenticação e obtém URI RTSP."""
+    def _try():
+        from app.camera.sources.onvif_cam import discover_rtsp_uri, list_onvif_profiles
+        from urllib.parse import urlparse
+        p = urlparse(url)
+        host = p.hostname or ""
+        port = p.port or 2020
+        user = p.username or ""
+        passwd = p.password or ""
+        profiles = list_onvif_profiles(host, port, user, passwd)
+        if not profiles:
+            return False, "ONVIF: autenticação falhou ou câmera não responde"
+        profile = profiles[0]
+        uri = discover_rtsp_uri(host, port, user, passwd, profile)
+        if not uri:
+            return False, f"ONVIF: perfis encontrados ({profiles[:3]}) mas sem URI RTSP"
+        return True, f"ONVIF OK — URI: {uri} | Perfis: {profiles[:3]}"
+
+    loop = asyncio.get_event_loop()
+    try:
+        ok, msg = await asyncio.wait_for(
+            loop.run_in_executor(None, _try), timeout=12.0
+        )
+        return {"online": ok, "message": msg}
+    except asyncio.TimeoutError:
+        return {"online": False, "message": "Timeout ONVIF — câmera não respondeu em 12s"}
     except Exception as e:
         return {"online": False, "message": str(e)}
 
@@ -397,14 +440,14 @@ async def _send_whatsapp_test(config: dict, override_number: str | None = None) 
 # ---------------------------------------------------------------------------
 
 async def load_rtsp_cameras_from_db() -> None:
-    """Carrega câmeras RTSP ativas do banco e registra no camera_registry."""
+    """Carrega câmeras IP/ONVIF ativas do banco e registra no camera_registry."""
     cameras = await settings_service.list_rtsp_cameras(enabled_only=True)
     for cam in cameras:
         try:
-            from app.camera.sources.rtsp import RTSPCamera
-            rtsp = RTSPCamera(url=cam.url, camera_id=cam.camera_id, label=cam.label)
-            rtsp.open()
-            camera_registry.register(rtsp)
-            logger.info("Câmera RTSP '{}' carregada do banco", cam.camera_id)
+            instance = _build_camera(cam.url, cam.camera_id, cam.label)
+            instance.open()
+            camera_registry.register(instance)
+            scheme = "ONVIF" if cam.url.lower().startswith("onvif://") else "RTSP"
+            logger.info("Câmera {} '{}' carregada do banco", scheme, cam.camera_id)
         except Exception as e:
-            logger.warning("Erro ao carregar câmera RTSP '{}': {}", cam.camera_id, e)
+            logger.warning("Erro ao carregar câmera '{}': {}", cam.camera_id, e)
