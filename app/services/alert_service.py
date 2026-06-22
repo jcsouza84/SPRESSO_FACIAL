@@ -1,8 +1,9 @@
 """
-Alertas de blacklist, cooldown e notificação WhatsApp (Fase 9).
+Alertas de blacklist, cooldown e notificações WhatsApp / Telegram.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -122,7 +123,11 @@ class AlertService:
         self._last_alert_by_person[rec.person_id] = now
         logger.warning("Alerta blacklist criado: {} (#{})", rec.person_name, alert.id)
 
-        await self._send_whatsapp(alert)
+        await asyncio.gather(
+            self._send_whatsapp(alert),
+            self._send_telegram(alert),
+            return_exceptions=True,
+        )
         return alert
 
     async def confirm_alert(self, alert_id: int) -> AlertRecord:
@@ -260,6 +265,74 @@ class AlertService:
             return sent_any
         except Exception as exc:
             logger.error("Falha ao enviar WhatsApp: {}", exc)
+            return False
+
+
+    async def _send_telegram(self, alert: AlertRecord) -> bool:
+        from app.services.settings_service import get_setting
+        tg_enabled = await get_setting("telegram_enabled") or ("true" if settings.telegram_enabled else "false")
+        if tg_enabled != "true":
+            return False
+
+        token = await get_setting("telegram_bot_token") or settings.telegram_bot_token
+        chat_ids_raw = await get_setting("telegram_chat_ids") or settings.telegram_chat_ids
+        chat_ids = [c.strip() for c in (chat_ids_raw or "").split(",") if c.strip()]
+
+        if not token or not chat_ids:
+            logger.warning("Telegram habilitado mas token/chat_ids não configurados")
+            return False
+
+        tz_name = await get_setting("app_timezone") or settings.app_timezone
+        try:
+            tz = ZoneInfo(tz_name)
+        except Exception:
+            tz = ZoneInfo("America/Maceio")
+        local_dt = alert.created_at.replace(tzinfo=timezone.utc).astimezone(tz)
+
+        caption = (
+            f"⚠️ *ALERTA BLACKLIST*\n"
+            f"*{alert.person_name}* identificado(a)\n"
+            f"Confiança: {alert.confidence:.0f}%\n"
+            f"Hora: {local_dt.strftime('%d/%m %H:%M:%S')}"
+        )
+        base_url = f"https://api.telegram.org/bot{token}"
+
+        sent_any = False
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                for chat_id in chat_ids:
+                    try:
+                        if alert.crop_path and Path(alert.crop_path).exists():
+                            photo_bytes = Path(alert.crop_path).read_bytes()
+                            resp = await client.post(
+                                f"{base_url}/sendPhoto",
+                                data={"chat_id": chat_id, "caption": caption, "parse_mode": "Markdown"},
+                                files={"photo": ("rosto.jpg", photo_bytes, "image/jpeg")},
+                            )
+                        else:
+                            resp = await client.post(
+                                f"{base_url}/sendMessage",
+                                json={"chat_id": chat_id, "text": caption, "parse_mode": "Markdown"},
+                            )
+                        if resp.status_code == 200 and resp.json().get("ok"):
+                            sent_any = True
+                            logger.info("Telegram enviado → chat_id {} (alerta #{})", chat_id, alert.id)
+                        else:
+                            logger.warning("Telegram rejeitou chat_id {}: {}", chat_id, resp.text)
+                    except Exception as e:
+                        logger.warning("Falha ao enviar Telegram para {}: {}", chat_id, e)
+
+            if sent_any:
+                async with get_session() as session:
+                    stmt = select(AlertRecord).where(AlertRecord.id == alert.id)
+                    result = await session.execute(stmt)
+                    db_alert = result.scalar_one()
+                    db_alert.telegram_sent = True
+                    await session.commit()
+
+            return sent_any
+        except Exception as exc:
+            logger.error("Falha geral ao enviar Telegram: {}", exc)
             return False
 
 

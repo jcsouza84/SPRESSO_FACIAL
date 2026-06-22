@@ -145,7 +145,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 /* ====== EVENTS ====== */
 .event-crops{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
 .ecw{position:relative;display:inline-block}
-.event-crop{width:60px;height:60px;object-fit:cover;border-radius:var(--r);border:2px solid var(--border);display:block}
+.event-crop{width:80px;height:80px;object-fit:cover;border-radius:var(--r);border:2px solid var(--border);display:block}
 .event-crop.c-unknown{border-color:var(--border)}
 .event-crop.c-vip{border-color:var(--success)}
 .event-crop.c-blacklist{border-color:var(--danger)}
@@ -233,6 +233,31 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+/* ====== INTEGRATION ACCORDIONS ====== */
+.int-section-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:20px 0 8px;padding-left:2px}
+.int-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:8px;overflow:hidden;transition:border-color .2s}
+.int-item.int-open{border-color:var(--accent)}
+.int-header{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none}
+.int-header:hover{background:rgba(255,255,255,.02)}
+.int-icon{width:36px;height:36px;border-radius:var(--r);background:var(--surface-high);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent);font-size:18px}
+.int-title{font-family:var(--font-title);font-weight:600;font-size:14px;flex:1}
+.int-badge{font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px}
+.int-badge.int-ok{color:var(--success)}
+.int-badge.int-off{color:var(--muted)}
+.int-chevron{color:var(--muted);font-size:20px;transition:transform .25s;flex-shrink:0}
+.int-item.int-open .int-chevron{transform:rotate(180deg)}
+.int-body{max-height:0;overflow:hidden;transition:max-height .35s ease}
+.int-item.int-open .int-body{max-height:1000px}
+.int-body-inner{padding:0 16px 16px}
+.cfg-accordion{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:8px;overflow:hidden}
+.cfg-acc-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none}
+.cfg-acc-header:hover{background:rgba(255,255,255,.02)}
+.cfg-acc-title{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cfg-acc-chevron{color:var(--muted);font-size:18px;transition:transform .25s}
+.cfg-accordion.cfg-open .cfg-acc-chevron{transform:rotate(180deg)}
+.cfg-acc-body{max-height:0;overflow:hidden;transition:max-height .35s ease}
+.cfg-accordion.cfg-open .cfg-acc-body{max-height:2000px}
+.cfg-acc-body-inner{padding:0 16px 16px}
 </style>
 </head>
 <body>
@@ -293,7 +318,7 @@ input[type=range]{flex:1;accent-color:var(--accent)}
         <div class="feed-wrap" id="feed-wrap">
           <img id="snapshot-img" src="" alt="Aguardando câmera..."/>
           <div class="feed-label">
-            <span class="feed-badge live"><span class="live-dot" style="margin-right:5px"></span>CAM_01 · LIVE</span>
+            <span class="feed-badge live"><span class="live-dot" style="margin-right:5px"></span><span id="feed-cam-label">LIVE</span></span>
             <span class="feed-badge feed-fps" id="live-fps">—</span>
           </div>
           <div class="feed-scan" id="feed-scan"></div>
@@ -393,7 +418,10 @@ input[type=range]{flex:1;accent-color:var(--accent)}
         </button>
       </div>
     </div>
-    <div class="card" style="padding:0;overflow:auto">
+    <div class="card" style="padding:0;overflow:auto;position:relative">
+      <div id="ev-silent-indicator" style="display:none;position:absolute;top:8px;right:10px;z-index:10;display:none;align-items:center;gap:4px;font-size:11px;color:var(--muted)">
+        <span class="spin" style="width:10px;height:10px;border-width:2px"></span>
+      </div>
       <table>
         <thead>
           <tr>
@@ -448,137 +476,214 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 
   <!-- ===== CONFIGURAÇÕES ===== -->
   <div class="page" id="page-config">
-    <h2 style="font-family:var(--font-title);font-size:18px;font-weight:700;margin-bottom:20px">Configurações do Sistema</h2>
+    <h2 style="font-family:var(--font-title);font-size:18px;font-weight:700;margin-bottom:20px">Ajustes</h2>
 
-    <!-- CÂMERAS RTSP -->
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div class="card-title" style="margin-bottom:0">Câmeras IP / RTSP</div>
-        <button class="btn btn-primary btn-sm" id="btn-add-rtsp" onclick="openAddRtspCamera()">
-          <span class="material-symbols-outlined" style="font-size:15px">add</span>Adicionar
-        </button>
+    <!-- CÂMERAS IP / RTSP (acordeão) -->
+    <div class="cfg-accordion cfg-open" id="acc-cameras">
+      <div class="cfg-acc-header" onclick="toggleCfgAcc('acc-cameras')">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">videocam</span>
+          <span class="cfg-acc-title">Câmeras & Detecção</span>
+        </div>
+        <span class="material-symbols-outlined cfg-acc-chevron">expand_more</span>
       </div>
-      <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Máximo de 2 câmeras RTSP. Alterações aplicadas em tempo real.</p>
-      <div id="rtsp-cameras-list"></div>
-    </div>
+      <div class="cfg-acc-body">
+        <div class="cfg-acc-body-inner">
 
-    <!-- WORKER DE DETECÇÃO -->
-    <div class="card">
-      <div class="card-title">Worker de Detecção Automática</div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Quando ativo, o sistema captura e processa frames automaticamente em background, sem necessidade de clicar "Detectar Agora".</p>
-      <div class="form-group">
-        <label style="flex-direction:row;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
-          <input type="checkbox" id="cfg-detection-auto" style="width:auto;background:none;border:none;padding:0"/>
-          <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Detecção automática ativa</span>
-        </label>
-      </div>
-      <div class="form-group">
-        <label>Frames por segundo (FPS)</label>
-        <div class="threshold-row">
-          <input type="range" id="cfg-detection-fps" min="0.1" max="5" step="0.1" value="1.0" oninput="document.getElementById('cfg-fps-val').textContent=parseFloat(this.value).toFixed(1)"/>
-          <span class="threshold-val" id="cfg-fps-val">1.0</span>
+          <!-- Câmeras RTSP -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <p style="font-size:11px;color:var(--muted)">Câmeras IP / RTSP — máximo de 2. A <strong>Primária</strong> é usada no Monitor e no reconhecimento.</p>
+            <button class="btn btn-primary btn-sm" id="btn-add-rtsp" onclick="openAddRtspCamera()" style="white-space:nowrap;flex-shrink:0;margin-left:12px">
+              <span class="material-symbols-outlined" style="font-size:15px">add</span>Adicionar
+            </button>
+          </div>
+          <div id="imx500-primary-row" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;background:var(--surface-high)">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-family:var(--font-title);font-weight:700;font-size:13px">IMX500</span>
+              <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">imx0 · câmera interna</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span id="imx500-primary-badge" class="badge badge-cyan" style="font-size:10px;display:none">★ PRIMÁRIA</span>
+              <button id="btn-set-imx500-primary" class="btn btn-ghost btn-sm" onclick="setActiveCameraId('imx0','IMX500')">
+                <span class="material-symbols-outlined" style="font-size:14px">star</span>Usar esta
+              </button>
+            </div>
+          </div>
+          <div id="rtsp-cameras-list"></div>
+
+          <div style="height:1px;background:var(--border);margin:16px 0"></div>
+
+          <!-- Worker de Detecção -->
+          <p style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Worker de Detecção</p>
+          <div class="form-group">
+            <label style="flex-direction:row;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+              <input type="checkbox" id="cfg-detection-auto" style="width:auto;background:none;border:none;padding:0"/>
+              <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Detecção automática ativa</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>Frames por segundo (FPS)</label>
+            <div class="threshold-row">
+              <input type="range" id="cfg-detection-fps" min="0.1" max="5" step="0.1" value="1.0" oninput="document.getElementById('cfg-fps-val').textContent=parseFloat(this.value).toFixed(1)"/>
+              <span class="threshold-val" id="cfg-fps-val">1.0</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Cooldown de alerta blacklist (s)</label>
+            <input type="number" id="cfg-alert-cooldown" min="10" max="86400" step="10" placeholder="300"/>
+          </div>
+          <div class="form-group">
+            <label>Janela de deduplicação (s)</label>
+            <input type="number" id="cfg-event-dedup" min="5" max="300" step="5" placeholder="30"/>
+          </div>
+          <div class="form-group">
+            <label>Fuso horário (IANA)</label>
+            <input type="text" id="cfg-timezone" placeholder="America/Maceio"/>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:16px 0"></div>
+
+          <!-- Threshold -->
+          <p style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Threshold de Reconhecimento</p>
+          <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Menor = mais restritivo. Maior = mais permissivo. <strong style="color:var(--text)">Recomendado: 0.40–0.55</strong></p>
+          <div class="threshold-row">
+            <input type="range" id="slider-threshold" min="0.20" max="0.70" step="0.01" value="0.45" oninput="updateThresholdLabel(this.value)"/>
+            <span class="threshold-val" id="label-threshold">0.45</span>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" onclick="saveDetectionSettings();saveThreshold()">Salvar</button>
+          </div>
+          <div id="detection-settings-status" style="font-size:12px;margin-top:8px"></div>
+          <div id="threshold-status" style="font-size:12px;margin-top:4px"></div>
         </div>
       </div>
-      <div class="form-group">
-        <label>Cooldown de alerta blacklist (segundos)</label>
-        <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Intervalo mínimo entre alertas da mesma pessoa. Padrão: 300s (5 min).</p>
-        <input type="number" id="cfg-alert-cooldown" min="10" max="86400" step="10" placeholder="300"/>
-      </div>
-      <div class="form-group">
-        <label>Janela de deduplicação (segundos)</label>
-        <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Ignora re-detecções da mesma pessoa neste intervalo. Padrão: 30s.</p>
-        <input type="number" id="cfg-event-dedup" min="5" max="300" step="5" placeholder="30"/>
-      </div>
-      <div class="form-group">
-        <label>Fuso horário (IANA)</label>
-        <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Usado nas mensagens WhatsApp. Ex: America/Maceio, America/Sao_Paulo.</p>
-        <input type="text" id="cfg-timezone" placeholder="America/Maceio"/>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary btn-sm" onclick="saveDetectionSettings()">Salvar</button>
-      </div>
-      <div id="detection-settings-status" style="font-size:12px;margin-top:8px"></div>
     </div>
 
-    <!-- THRESHOLD DE RECONHECIMENTO -->
-    <div class="card">
-      <div class="card-title">Threshold de Reconhecimento</div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
-        Valores menores = mais restritivo (menos falsos positivos).<br>
-        Valores maiores = mais permissivo (mais identificações).<br>
-        <strong style="color:var(--text)">Recomendado: 0.40 – 0.55</strong>
-      </p>
-      <div class="threshold-row">
-        <input type="range" id="slider-threshold" min="0.20" max="0.70" step="0.01" value="0.45" oninput="updateThresholdLabel(this.value)"/>
-        <span class="threshold-val" id="label-threshold">0.45</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary btn-sm" onclick="saveThreshold()">Salvar Threshold</button>
-      </div>
-      <div id="threshold-status" style="font-size:12px;margin-top:8px"></div>
-    </div>
+    <!-- INTEGRAÇÕES -->
+    <div class="int-section-label">Integrações</div>
 
-    <!-- WHATSAPP / EVOLUTION API -->
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div class="card-title" style="margin-bottom:0">WhatsApp — Evolution API</div>
-        <div id="wa-status-badge" style="font-size:11px;font-family:var(--font-mono);color:var(--muted)">— verificando</div>
+    <!-- TELEGRAM -->
+    <div class="int-item" id="int-telegram">
+      <div class="int-header" onclick="toggleIntegration('telegram')">
+        <div class="int-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 6.52l-1.68 7.92c-.13.57-.46.71-.93.44l-2.57-1.89-1.24 1.19c-.14.14-.26.26-.52.26l.18-2.63 4.74-4.28c.21-.18-.04-.28-.31-.1L7.93 14.27l-2.52-.79c-.55-.17-.56-.55.11-.81l9.84-3.79c.46-.17.87.11.57.84z" fill="currentColor"/></svg>
+        </div>
+        <span class="int-title">Telegram</span>
+        <span class="int-badge int-off" id="tg-int-badge">○ Não configurado</span>
+        <span class="material-symbols-outlined int-chevron">expand_more</span>
       </div>
-      <div class="form-group">
-        <label style="flex-direction:row;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
-          <input type="checkbox" id="cfg-wa-enabled" style="width:auto;background:none;border:none;padding:0"/>
-          <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Notificações ativas</span>
-        </label>
-      </div>
-      <div class="form-group">
-        <label>URL da API (Evolution)</label>
-        <input type="text" id="cfg-wa-url" placeholder="http://localhost:8080"/>
-      </div>
-      <div class="form-group">
-        <label>API Key</label>
-        <input type="password" id="cfg-wa-key" placeholder="••••••••••••••••"/>
-      </div>
-      <div class="form-group">
-        <label>Nome da Instância</label>
-        <input type="text" id="cfg-wa-instance" placeholder="spresso"/>
-      </div>
-
-      <!-- MÚLTIPLOS NÚMEROS DE ALERTA -->
-      <div class="form-group">
-        <label>Números para alertas (com DDI)</label>
-        <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Todos os números receberão alertas automáticos de blacklist.</p>
-        <div id="wa-numbers-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-        <div style="display:flex;gap:6px">
-          <input type="text" id="wa-number-input" placeholder="+5511999999999" style="flex:1"/>
-          <button class="btn btn-ghost btn-sm" onclick="addWaNumber()" style="white-space:nowrap">
-            <span class="material-symbols-outlined" style="font-size:15px">add</span>Adicionar
-          </button>
+      <div class="int-body">
+        <div class="int-body-inner">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Crie um bot via <strong>@BotFather</strong>, cole o token e clique em <strong>Descobrir</strong> após enviar qualquer mensagem para o seu bot.</p>
+          <div class="form-group">
+            <label style="flex-direction:row;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+              <input type="checkbox" id="cfg-tg-enabled" style="width:auto;background:none;border:none;padding:0"/>
+              <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Notificações ativas</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>Token do Bot</label>
+            <input type="password" id="cfg-tg-token" placeholder="123456789:AAF..." autocomplete="off"/>
+          </div>
+          <div class="form-group">
+            <label>Chat ID</label>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="cfg-tg-chat-ids" placeholder="7363137004" style="flex:1"/>
+              <button class="btn btn-ghost btn-sm" onclick="discoverTelegramChatId()" style="white-space:nowrap">
+                <span class="material-symbols-outlined" style="font-size:15px">search</span>Descobrir
+              </button>
+            </div>
+            <p style="font-size:11px;color:var(--muted);margin-top:5px">Envie qualquer mensagem para o bot no Telegram, depois clique em <strong>Descobrir</strong>.</p>
+          </div>
+          <div id="tg-discover-result" style="font-size:12px;margin-bottom:10px"></div>
+          <div class="btn-row">
+            <button class="btn btn-ghost btn-sm" onclick="checkTelegramStatus()">
+              <span class="material-symbols-outlined" style="font-size:15px">wifi_tethering</span>Testar conexão
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="saveTelegramSettings()">
+              <span class="material-symbols-outlined" style="font-size:15px">save</span>Salvar
+            </button>
+          </div>
+          <div id="tg-save-result" style="font-size:12px;margin-top:8px"></div>
+          <div style="height:1px;background:var(--border);margin:14px 0"></div>
+          <p style="font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Teste de mensagem</p>
+          <div class="btn-row" style="margin-top:0">
+            <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="sendTelegramTest()">
+              <span class="material-symbols-outlined" style="font-size:15px">send</span>Enviar mensagem
+            </button>
+          </div>
+          <div id="tg-test-result" style="font-size:12px;margin-top:8px"></div>
         </div>
       </div>
-
-      <div class="btn-row">
-        <button class="btn btn-ghost btn-sm" onclick="checkWhatsappStatus()">
-          <span class="material-symbols-outlined" style="font-size:15px">wifi_tethering</span>Verificar Status
-        </button>
-        <button class="btn btn-primary btn-sm" onclick="saveWhatsappSettings()">Salvar Configurações</button>
-      </div>
-      <div id="wa-save-result" style="font-size:12px;margin-top:8px"></div>
     </div>
 
-    <!-- TESTE WHATSAPP (número avulso) -->
-    <div class="card">
-      <div class="card-title">Teste de Notificação WhatsApp</div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Informe um número avulso para teste pontual, ou deixe em branco para enviar para todos os números cadastrados.</p>
-      <div class="form-group">
-        <label>Número de teste (opcional)</label>
-        <input type="text" id="cfg-wa-test-number" placeholder="+5511999999999 (opcional)"/>
+    <!-- WHATSAPP -->
+    <div class="int-item" id="int-whatsapp">
+      <div class="int-header" onclick="toggleIntegration('whatsapp')">
+        <div class="int-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" fill="currentColor"/></svg>
+        </div>
+        <span class="int-title">WhatsApp</span>
+        <span class="int-badge int-off" id="wa-int-badge">○ Não configurado</span>
+        <span class="material-symbols-outlined int-chevron">expand_more</span>
       </div>
-      <div class="btn-row">
-        <button class="btn btn-ghost btn-sm" onclick="sendWhatsappTest()">
-          <span class="material-symbols-outlined" style="font-size:15px">send</span>Enviar Teste
-        </button>
+      <div class="int-body">
+        <div class="int-body-inner">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <p style="font-size:12px;color:var(--muted)">Integração via Evolution API (Baileys). Requer VPS externo com instância conectada.</p>
+            <div id="wa-status-badge" style="font-size:11px;font-family:var(--font-mono);color:var(--muted);white-space:nowrap;margin-left:10px">— verificando</div>
+          </div>
+          <div class="form-group">
+            <label style="flex-direction:row;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+              <input type="checkbox" id="cfg-wa-enabled" style="width:auto;background:none;border:none;padding:0"/>
+              <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Notificações ativas</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>URL da API (Evolution)</label>
+            <input type="text" id="cfg-wa-url" placeholder="http://localhost:8080"/>
+          </div>
+          <div class="form-group">
+            <label>API Key</label>
+            <input type="password" id="cfg-wa-key" placeholder="••••••••••••••••"/>
+          </div>
+          <div class="form-group">
+            <label>Nome da Instância</label>
+            <input type="text" id="cfg-wa-instance" placeholder="spresso"/>
+          </div>
+          <div class="form-group">
+            <label>Números para alertas (com DDI)</label>
+            <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Todos os números receberão alertas automáticos de blacklist.</p>
+            <div id="wa-numbers-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="wa-number-input" placeholder="+5511999999999" style="flex:1"/>
+              <button class="btn btn-ghost btn-sm" onclick="addWaNumber()" style="white-space:nowrap">
+                <span class="material-symbols-outlined" style="font-size:15px">add</span>Adicionar
+              </button>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-ghost btn-sm" onclick="checkWhatsappStatus()">
+              <span class="material-symbols-outlined" style="font-size:15px">wifi_tethering</span>Verificar Status
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="saveWhatsappSettings()">Salvar Configurações</button>
+          </div>
+          <div id="wa-save-result" style="font-size:12px;margin-top:8px"></div>
+          <div style="height:1px;background:var(--border);margin:14px 0"></div>
+          <p style="font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Teste de mensagem</p>
+          <div class="form-group">
+            <label>Número de teste (opcional)</label>
+            <input type="text" id="cfg-wa-test-number" placeholder="+5511999999999 (opcional)"/>
+          </div>
+          <div class="btn-row" style="margin-top:0">
+            <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="sendWhatsappTest()">
+              <span class="material-symbols-outlined" style="font-size:15px">send</span>Enviar Teste
+            </button>
+          </div>
+          <div id="wa-test-result" style="font-size:12px;margin-top:8px"></div>
+        </div>
       </div>
-      <div id="wa-test-result" style="font-size:12px;margin-top:8px"></div>
     </div>
 
   </div>
@@ -1111,10 +1216,23 @@ function stopLive() {
   document.getElementById('feed-wrap').classList.remove('f-blacklist', 'f-vip');
 }
 
+let _activeCameraId = 'imx0';  // atualizado ao carregar settings
+
+async function loadActiveCameraId() {
+  try {
+    const data = await fetch(API + '/settings/active-camera').then(r => r.json());
+    _activeCameraId = data.camera_id || 'imx0';
+    const label = data.label || _activeCameraId.toUpperCase();
+    document.getElementById('feed-cam-label').textContent = label + ' · LIVE';
+  } catch(e) {}
+}
+
 async function refreshPreview() {
   if (_recognizeInProgress) return;
   try {
-    const resp = await fetch(API + '/camera/preview?t=' + Date.now());
+    const camParam = _activeCameraId && _activeCameraId !== 'imx0'
+      ? `&camera_id=${encodeURIComponent(_activeCameraId)}` : '';
+    const resp = await fetch(API + '/camera/preview?t=' + Date.now() + camParam);
     if (!resp.ok) return;
     const blob = await resp.blob();
     document.getElementById('snapshot-img').src = URL.createObjectURL(blob);
@@ -1126,8 +1244,9 @@ async function liveRecognize() {
   _recognizeInProgress = true;
   const t0 = performance.now();
   try {
+    const camParam = _activeCameraId ? `&camera_id=${encodeURIComponent(_activeCameraId)}` : '';
     const data = await fetch(
-      API + '/detection/faces?dedup=false&persist=false&include_frame=true&process_alerts=false'
+      API + '/detection/faces?dedup=false&persist=false&include_frame=true&process_alerts=false' + camParam
     ).then(r => r.json());
     applyFrame(data);
     updateStatusCard(data);
@@ -1406,7 +1525,7 @@ function _evTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-async function loadEvents(resetPage = false) {
+async function loadEvents(resetPage = false, silent = false) {
   if (resetPage) _evState.offset = 0;
 
   // Preenche datepicker com hoje na primeira vez
@@ -1414,9 +1533,17 @@ async function loadEvents(resetPage = false) {
   if (!dateInput.value) dateInput.value = _evTodayStr();
 
   const tbody = document.getElementById('events-tbody');
+  const silentIndicator = document.getElementById('ev-silent-indicator');
   const facesOnly = document.getElementById('chk-faces-only').checked;
   const dateParam = dateInput.value ? `&date=${dateInput.value}` : '';
-  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px"><span class="spin"></span></td></tr>';
+
+  if (silent) {
+    // Não apaga os dados — apenas mostra indicador sutil no canto
+    if (silentIndicator) silentIndicator.style.display = 'flex';
+  } else {
+    if (silentIndicator) silentIndicator.style.display = 'none';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px"><span class="spin"></span></td></tr>';
+  }
   try {
     const data = await fetch(API + `/events?limit=${_evState.limit}&offset=${_evState.offset}&only_with_faces=${facesOnly}${dateParam}`).then(r => r.json());
     _evState.total = data.total || 0;
@@ -1515,7 +1642,11 @@ async function loadEvents(resetPage = false) {
       </tr>`;
     }).join('');
   } catch(ex) {
-    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--danger);padding:14px">${ex.message}</td></tr>`;
+    if (!silent) {
+      tbody.innerHTML = `<tr><td colspan="5" style="color:var(--danger);padding:14px">${ex.message}</td></tr>`;
+    }
+  } finally {
+    if (silentIndicator) silentIndicator.style.display = 'none';
   }
 }
 
@@ -1738,9 +1869,29 @@ function esc(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// ====== ACORDEÕES ======
+function toggleCfgAcc(id) {
+  document.getElementById(id).classList.toggle('cfg-open');
+}
+
+function toggleIntegration(name) {
+  const el = document.getElementById('int-' + name);
+  const wasOpen = el.classList.contains('int-open');
+  // fecha todos
+  document.querySelectorAll('.int-item').forEach(i => i.classList.remove('int-open'));
+  if (!wasOpen) el.classList.add('int-open');
+}
+
+function _updateIntBadge(name, configured) {
+  const badge = document.getElementById(name + '-int-badge');
+  if (!badge) return;
+  badge.className = 'int-badge ' + (configured ? 'int-ok' : 'int-off');
+  badge.textContent = configured ? '● Configurado' : '○ Não configurado';
+}
+
 // ====== CONFIGURAÇÕES ======
 async function loadConfigPage() {
-  await Promise.all([loadRtspCameras(), loadGeneralSettings(), checkWhatsappStatus()]);
+  await Promise.all([loadRtspCameras(), loadGeneralSettings(), checkWhatsappStatus(), loadTelegramSettings()]);
   // loadGeneralSettings já carrega o threshold do banco; fallback para API de threshold
   const sliderEl = document.getElementById('slider-threshold');
   if (sliderEl && parseFloat(sliderEl.value) === 0.45) await loadThreshold();
@@ -1805,6 +1956,7 @@ async function loadGeneralSettings() {
     // múltiplos números
     _waNumbers = (data.whatsapp_notify_numbers || '').split(',').map(s => s.trim()).filter(Boolean);
     renderWaNumbers();
+    _updateIntBadge('wa', !!(data.whatsapp_api_url));
   } catch(e) { showToast('Erro', 'Não foi possível carregar configurações', 'error'); }
 }
 
@@ -1881,32 +2033,145 @@ async function sendWhatsappTest() {
   } catch(e) { result.innerHTML = `<div class="alert alert-error">${e.message}</div>`; }
 }
 
+// Atualiza badge WhatsApp ao verificar status
+async function checkWhatsappStatusAndBadge() {
+  await checkWhatsappStatus();
+  const url = (document.getElementById('cfg-wa-url')?.value || '').trim();
+  _updateIntBadge('wa', !!url);
+}
+
+// ====== TELEGRAM ======
+async function loadTelegramSettings() {
+  try {
+    const data = await fetch(API + '/settings').then(r => r.json());
+    document.getElementById('cfg-tg-enabled').checked = data.telegram_enabled === 'true';
+    document.getElementById('cfg-tg-token').value = data.telegram_bot_token_set ? '••••••••' : '';
+    document.getElementById('cfg-tg-chat-ids').value = data.telegram_chat_ids || '';
+    _updateIntBadge('tg', !!data.telegram_bot_token_set);
+  } catch(e) {}
+}
+
+async function saveTelegramSettings() {
+  const token = document.getElementById('cfg-tg-token').value;
+  const chatIds = document.getElementById('cfg-tg-chat-ids').value.trim();
+  const enabled = document.getElementById('cfg-tg-enabled').checked;
+  const body = { telegram_enabled: enabled, telegram_chat_ids: chatIds };
+  if (token && !token.includes('••••')) body.telegram_bot_token = token;
+  const statusEl = document.getElementById('tg-save-result');
+  statusEl.innerHTML = '<span class="spin"></span> Salvando...';
+  try {
+    const r = await fetch(API + '/settings', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    statusEl.innerHTML = '<div class="alert alert-success">Configurações salvas!</div>';
+    showToast('Salvo', 'Configurações Telegram salvas.', 'success');
+    _updateIntBadge('tg', !!(body.telegram_bot_token || token.includes('••••')));
+    await checkTelegramStatus();
+  } catch(e) {
+    statusEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+    showToast('Erro', e.message, 'error');
+  }
+}
+
+async function checkTelegramStatus() {
+  const statusEl = document.getElementById('tg-save-result');
+  const prev = statusEl.innerHTML;
+  statusEl.innerHTML = '<span class="spin"></span> Verificando...';
+  try {
+    const data = await fetch(API + '/settings/telegram/status').then(r => r.json());
+    if (data.ok) {
+      statusEl.innerHTML = `<div class="alert alert-success">Bot conectado: ${esc(data.message)}</div>`;
+      _updateIntBadge('tg', true);
+    } else {
+      statusEl.innerHTML = `<div class="alert alert-error">${esc(data.message)}</div>`;
+    }
+  } catch(e) {
+    statusEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+async function discoverTelegramChatId() {
+  const resultEl = document.getElementById('tg-discover-result');
+  resultEl.innerHTML = '<span class="spin"></span> Buscando...';
+  try {
+    const data = await fetch(API + '/settings/telegram/discover').then(r => r.json());
+    if (!data.ok) {
+      resultEl.innerHTML = `<div class="alert alert-error">${esc(data.message)}</div>`;
+      return;
+    }
+    if (!data.chat_ids?.length) {
+      resultEl.innerHTML = `<div class="alert alert-info">${esc(data.message)}</div>`;
+      return;
+    }
+    // Preenche o campo com o primeiro chat_id encontrado (ou todos separados por vírgula)
+    const ids = data.chat_ids.map(c => c.id).join(',');
+    document.getElementById('cfg-tg-chat-ids').value = ids;
+    const names = data.chat_ids.map(c => `${c.id} (${c.name})`).join(', ');
+    resultEl.innerHTML = `<div class="alert alert-success">Encontrado: ${esc(names)}</div>`;
+  } catch(e) {
+    resultEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+async function sendTelegramTest() {
+  const resultEl = document.getElementById('tg-test-result');
+  resultEl.innerHTML = '<span class="spin"></span> Enviando...';
+  try {
+    const r = await fetch(API + '/settings/test/telegram', { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+    let details = '';
+    if (data.details?.length) {
+      details = '<ul style="margin:4px 0 0;padding-left:16px">' +
+        data.details.map(d => `<li>chat_id ${esc(d.chat_id)}: ${d.sent ? '✓' : '✗ ' + d.status}</li>`).join('') +
+        '</ul>';
+    }
+    resultEl.innerHTML = `<div class="alert ${data.sent ? 'alert-success' : 'alert-error'}">${esc(data.message)}${details}</div>`;
+  } catch(e) { resultEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`; }
+}
+
 // ====== RTSP CAMERAS ======
 async function loadRtspCameras() {
   const el = document.getElementById('rtsp-cameras-list');
   el.innerHTML = '<span class="spin"></span>';
   try {
-    const cameras = await fetch(API + '/settings/cameras').then(r => r.json());
+    const [cameras, activeCam] = await Promise.all([
+      fetch(API + '/settings/cameras').then(r => r.json()),
+      fetch(API + '/settings/active-camera').then(r => r.json()),
+    ]);
+    const activeId = activeCam.camera_id || 'imx0';
+    // atualiza badge da IMX500
+    const imxBadge = document.getElementById('imx500-primary-badge');
+    const imxBtn   = document.getElementById('btn-set-imx500-primary');
+    if (imxBadge) imxBadge.style.display = activeId === 'imx0' ? 'inline-flex' : 'none';
+    if (imxBtn)   imxBtn.style.display   = activeId === 'imx0' ? 'none' : '';
+
     const btnAdd = document.getElementById('btn-add-rtsp');
     if (btnAdd) btnAdd.disabled = cameras.length >= 2;
     if (!cameras.length) {
-      el.innerHTML = '<p style="font-size:12px;color:var(--muted)">Nenhuma câmera RTSP cadastrada.</p>';
+      el.innerHTML = '<p style="font-size:12px;color:var(--muted)">Nenhuma câmera IP cadastrada.</p>';
       return;
     }
-    el.innerHTML = cameras.map(cam => `
-      <div class="card" style="margin-bottom:10px;padding:14px;border-color:${cam.enabled ? 'var(--border)' : 'rgba(255,255,255,.06)'}">
+    el.innerHTML = cameras.map(cam => {
+      const isPrimary = cam.camera_id === activeId;
+      return `
+      <div class="card" style="margin-bottom:10px;padding:14px;border-color:${isPrimary ? 'var(--accent)' : cam.enabled ? 'var(--border)' : 'rgba(255,255,255,.06)'}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-family:var(--font-title);font-weight:700;font-size:13px">${esc(cam.label)}</span>
             <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">${esc(cam.camera_id)}</span>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
+            ${isPrimary ? '<span class="badge badge-cyan" style="font-size:10px">★ PRIMÁRIA</span>' : ''}
             <span class="badge ${cam.ready ? 'badge-ok' : 'badge-warn'}" style="font-size:10px">${cam.ready ? '● ONLINE' : '○ OFFLINE'}</span>
-            <span class="badge ${cam.enabled ? 'badge-cyan' : 'badge-warn'}">${cam.enabled ? 'Ativa' : 'Inativa'}</span>
           </div>
         </div>
         <p style="font-family:var(--font-mono);font-size:10px;color:var(--muted);word-break:break-all;margin-bottom:10px">${esc(cam.url)}</p>
         <div class="btn-row" style="margin-top:0">
+          ${!isPrimary ? `<button class="btn btn-ghost btn-sm" onclick="setActiveCameraId('${esc(cam.camera_id)}','${esc(cam.label)}')">
+            <span class="material-symbols-outlined" style="font-size:14px">star</span>Usar esta
+          </button>` : ''}
           <button class="btn btn-ghost btn-sm" onclick="testRtspById(${cam.id})">
             <span class="material-symbols-outlined" style="font-size:14px">wifi_tethering</span>Testar
           </button>
@@ -1919,10 +2184,24 @@ async function loadRtspCameras() {
           <button class="btn btn-danger btn-sm" onclick="deleteRtspCamera(${cam.id},'${esc(cam.label)}')">🗑</button>
         </div>
         <div id="rtsp-test-${cam.id}" style="font-size:11px;margin-top:6px"></div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   } catch(e) {
     el.innerHTML = `<span style="color:var(--danger);font-size:12px">${e.message}</span>`;
   }
+}
+
+async function setActiveCameraId(cameraId, label) {
+  try {
+    await fetch(API + '/settings/active-camera', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ camera_id: cameraId }),
+    });
+    _activeCameraId = cameraId;
+    document.getElementById('feed-cam-label').textContent = label + ' · LIVE';
+    showToast('Câmera primária', `${label} agora é a câmera ativa.`, 'success');
+    loadRtspCameras();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
 }
 
 function openAddRtspCamera() {
@@ -2022,11 +2301,12 @@ async function deleteRtspCamera(id, label) {
 // ====== INIT ======
 getStatus();
 loadActiveAlerts();
+loadActiveCameraId();
 startLive();
 
-// Auto-refresh eventos a cada 15s quando na aba eventos
+// Auto-refresh eventos a cada 15s — silencioso para não apagar dados visíveis
 setInterval(() => {
-  if (document.querySelector('.nav-item.active')?.dataset.page === 'events') loadEvents();
+  if (document.querySelector('.nav-item.active')?.dataset.page === 'events') loadEvents(false, true);
 }, 15000);
 
 // Auto-refresh alertas blacklist a cada 30s

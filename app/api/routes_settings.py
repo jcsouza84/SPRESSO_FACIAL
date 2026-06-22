@@ -1,6 +1,6 @@
 """
 Endpoints de configuração do sistema — editáveis pela UI em runtime.
-Inclui: settings gerais, câmeras RTSP (max 2), WhatsApp/Evolution API.
+Inclui: settings gerais, câmeras RTSP (max 2), WhatsApp/Evolution API, Telegram Bot.
 """
 import asyncio
 from datetime import datetime, timezone
@@ -22,11 +22,17 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 # ---------------------------------------------------------------------------
 
 class SettingsUpdate(BaseModel):
+    # Telegram
+    telegram_enabled: Optional[bool] = None
+    telegram_bot_token: Optional[str] = None
+    telegram_chat_ids: Optional[str] = None   # CSV: "7363137004,987654321"
+    # WhatsApp
     whatsapp_enabled: Optional[bool] = None
     whatsapp_api_url: Optional[str] = None
     whatsapp_api_key: Optional[str] = None
     whatsapp_instance: Optional[str] = None
     whatsapp_notify_numbers: Optional[str] = None   # CSV: "+5511...,+5521..."
+    # Worker / reconhecimento / alertas
     detection_auto: Optional[bool] = None
     detection_fps: Optional[float] = None
     recognition_threshold: Optional[float] = None
@@ -58,13 +64,19 @@ class RtspCameraUpdate(BaseModel):
 
 @router.get("")
 async def get_settings() -> dict:
-    """Retorna todas as configurações editáveis (API key mascarada)."""
+    """Retorna todas as configurações editáveis (tokens mascarados)."""
     from app.config import settings as cfg
     data = await settings_service.get_all_settings()
     # threshold: usa valor do banco se existir, senão usa config.py
     if not data.get("recognition_threshold"):
         data["recognition_threshold"] = str(cfg.recognition_threshold)
-    # mascara a API key
+    # mascara token Telegram
+    if data.get("telegram_bot_token"):
+        data["telegram_bot_token_set"] = True
+        data["telegram_bot_token"] = "••••••••"
+    else:
+        data["telegram_bot_token_set"] = False
+    # mascara a API key WhatsApp
     if data.get("whatsapp_api_key"):
         raw = data["whatsapp_api_key"]
         data["whatsapp_api_key"] = raw[:4] + "••••••••" + raw[-4:] if len(raw) > 8 else "••••••••"
@@ -78,6 +90,14 @@ async def get_settings() -> dict:
 async def save_settings(body: SettingsUpdate) -> dict:
     """Salva configurações e aplica em runtime sem restart."""
     data = {}
+    # Telegram
+    if body.telegram_enabled is not None:
+        data["telegram_enabled"] = str(body.telegram_enabled).lower()
+    if body.telegram_bot_token is not None and "••••" not in body.telegram_bot_token:
+        data["telegram_bot_token"] = body.telegram_bot_token
+    if body.telegram_chat_ids is not None:
+        data["telegram_chat_ids"] = body.telegram_chat_ids
+    # WhatsApp
     if body.whatsapp_enabled is not None:
         data["whatsapp_enabled"] = str(body.whatsapp_enabled).lower()
     if body.whatsapp_api_url is not None:
@@ -128,6 +148,44 @@ def _apply_detection_auto(enabled: bool) -> None:
         logger.info("Detection worker ativado pela UI")
     elif not enabled:
         logger.info("Detection worker será desativado no próximo restart (em runtime não é interrompível)")
+
+
+# ---------------------------------------------------------------------------
+# Câmera primária (active camera)
+# ---------------------------------------------------------------------------
+
+class ActiveCameraBody(BaseModel):
+    camera_id: str
+
+
+@router.get("/active-camera")
+async def get_active_camera() -> dict:
+    """Retorna a câmera primária configurada para detecção e monitor."""
+    camera_id = await settings_service.get_setting("active_camera_id") or "imx0"
+    # resolve o label
+    if camera_id == "imx0":
+        label = "IMX500"
+    else:
+        try:
+            cam = camera_registry.get(camera_id)
+            label = cam.label
+        except KeyError:
+            label = camera_id
+    return {"camera_id": camera_id, "label": label}
+
+
+@router.post("/active-camera")
+async def set_active_camera(body: ActiveCameraBody) -> dict:
+    """Define qual câmera será usada no Monitor e no pipeline de detecção."""
+    camera_id = body.camera_id.strip()
+    if not camera_id:
+        raise HTTPException(status_code=400, detail="camera_id não pode ser vazio")
+    # valida: deve ser imx0 ou estar no registry
+    if camera_id != "imx0" and not camera_registry.is_registered(camera_id):
+        raise HTTPException(status_code=404, detail=f"Câmera '{camera_id}' não encontrada no registry")
+    await settings_service.set_settings({"active_camera_id": camera_id})
+    logger.info("Câmera primária alterada para '{}'", camera_id)
+    return {"ok": True, "camera_id": camera_id}
 
 
 # ---------------------------------------------------------------------------
@@ -262,6 +320,44 @@ async def test_whatsapp(body: WhatsappTestBody | None = None) -> dict:
     if not test_number and not config["notify_numbers"]:
         raise HTTPException(status_code=400, detail="Informe um número de teste ou cadastre números na lista")
     return await _send_whatsapp_test(config, override_number=test_number or None)
+
+
+# ---------------------------------------------------------------------------
+# Telegram Bot API
+# ---------------------------------------------------------------------------
+
+@router.get("/telegram/status")
+async def telegram_status() -> dict:
+    """Verifica o token do bot via getMe."""
+    token = await settings_service.get_setting("telegram_bot_token")
+    if not token:
+        return {"ok": False, "message": "Token do bot não configurado"}
+    return await _check_telegram_bot(token)
+
+
+@router.get("/telegram/discover")
+async def telegram_discover() -> dict:
+    """
+    Chama getUpdates para descobrir chat_ids que enviaram mensagem ao bot.
+    O usuário deve enviar qualquer mensagem ao bot antes de clicar em Descobrir.
+    """
+    token = await settings_service.get_setting("telegram_bot_token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Token do bot não configurado")
+    return await _discover_telegram_chat_ids(token)
+
+
+@router.post("/test/telegram")
+async def test_telegram() -> dict:
+    """Envia mensagem de teste para todos os chat_ids configurados."""
+    token = await settings_service.get_setting("telegram_bot_token")
+    chat_ids_raw = await settings_service.get_setting("telegram_chat_ids") or ""
+    if not token:
+        raise HTTPException(status_code=400, detail="Token do bot não configurado")
+    chat_ids = [c.strip() for c in chat_ids_raw.split(",") if c.strip()]
+    if not chat_ids:
+        raise HTTPException(status_code=400, detail="Nenhum Chat ID configurado")
+    return await _send_telegram_test(token, chat_ids)
 
 
 # ---------------------------------------------------------------------------
@@ -431,6 +527,82 @@ async def _send_whatsapp_test(config: dict, override_number: str | None = None) 
     return {
         "sent": all_ok,
         "message": f"Enviado para {sum(r['sent'] for r in results)}/{len(results)} número(s)",
+        "details": results,
+    }
+
+
+async def _check_telegram_bot(token: str) -> dict:
+    url = f"https://api.telegram.org/bot{token}/getMe"
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(url)
+        data = r.json()
+        if data.get("ok"):
+            bot = data.get("result", {})
+            return {
+                "ok": True,
+                "bot_name": bot.get("first_name", ""),
+                "username": bot.get("username", ""),
+                "message": f"Bot conectado: @{bot.get('username', '')}",
+            }
+        return {"ok": False, "message": data.get("description", "Token inválido")}
+    except httpx.ConnectError:
+        return {"ok": False, "message": "Sem acesso à internet ou api.telegram.org inacessível"}
+    except Exception as e:
+        return {"ok": False, "message": str(e)}
+
+
+async def _discover_telegram_chat_ids(token: str) -> dict:
+    url = f"https://api.telegram.org/bot{token}/getUpdates"
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(url)
+        data = r.json()
+        if not data.get("ok"):
+            return {"ok": False, "chat_ids": [], "message": data.get("description", "Erro ao buscar updates")}
+        updates = data.get("result", [])
+        seen: dict[str, str] = {}
+        for upd in updates:
+            msg = upd.get("message") or upd.get("channel_post") or {}
+            chat = msg.get("chat", {})
+            cid = str(chat.get("id", ""))
+            if cid and cid not in seen:
+                name = chat.get("title") or chat.get("first_name") or chat.get("username") or cid
+                seen[cid] = name
+        if not seen:
+            return {
+                "ok": True,
+                "chat_ids": [],
+                "message": "Nenhuma mensagem recebida ainda. Envie qualquer mensagem ao bot e clique em Descobrir.",
+            }
+        return {
+            "ok": True,
+            "chat_ids": [{"id": k, "name": v} for k, v in seen.items()],
+            "message": f"{len(seen)} chat(s) encontrado(s)",
+        }
+    except Exception as e:
+        return {"ok": False, "chat_ids": [], "message": str(e)}
+
+
+async def _send_telegram_test(token: str, chat_ids: list[str]) -> dict:
+    base = f"https://api.telegram.org/bot{token}"
+    msg = "✅ *SPRESSO FACIAL* — Teste de notificação. Sistema operacional."
+    results = []
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for chat_id in chat_ids:
+            try:
+                r = await client.post(
+                    f"{base}/sendMessage",
+                    json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"},
+                )
+                ok = r.status_code == 200 and r.json().get("ok", False)
+                results.append({"chat_id": chat_id, "sent": ok, "status": r.status_code})
+            except Exception as e:
+                results.append({"chat_id": chat_id, "sent": False, "status": str(e)})
+    all_ok = all(r["sent"] for r in results)
+    return {
+        "sent": all_ok,
+        "message": f"Enviado para {sum(r['sent'] for r in results)}/{len(results)} chat(s)",
         "details": results,
     }
 

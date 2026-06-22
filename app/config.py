@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     whatsapp_instance: str = Field(default="default")
     whatsapp_notify_number: str = Field(default="")
 
+    # Telegram Bot API — desligado por padrão
+    telegram_enabled: bool = Field(default=False)
+    telegram_bot_token: str = Field(default="")
+    telegram_chat_ids: str = Field(default="")   # CSV: "7363137004,987654321"
+
     # Armazenamento
     data_dir: Path = Field(default=Path("data"))
     logs_dir: Path = Field(default=Path("logs"))

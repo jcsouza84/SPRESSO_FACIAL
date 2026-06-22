@@ -16,6 +16,10 @@ _MAX_RTSP_CAMERAS = 2
 
 # Chaves de configuração válidas e seus defaults
 _DEFAULTS: dict[str, str] = {
+    # Telegram Bot
+    "telegram_enabled":          "false",
+    "telegram_bot_token":        "",
+    "telegram_chat_ids":         "",   # múltiplos chat_ids separados por vírgula
     # WhatsApp
     "whatsapp_enabled":          "false",
     "whatsapp_api_url":          "",
@@ -32,6 +36,8 @@ _DEFAULTS: dict[str, str] = {
     "event_dedup_seconds":       "",   # vazio = usa config.py default (30s)
     # Localização
     "app_timezone":              "America/Maceio",
+    # Câmera primária para detecção e monitor
+    "active_camera_id":          "imx0",
 }
 
 
