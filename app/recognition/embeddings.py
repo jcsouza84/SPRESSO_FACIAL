@@ -1,13 +1,17 @@
 """
-Geração de embeddings faciais usando InsightFace (MobileFaceNet / ArcFace).
+Geração de embeddings faciais usando InsightFace buffalo_l (ResNet50 / ArcFace).
 
-IMPORTANTE: O ArcFace exige faces alinhadas usando os 5 keypoints faciais
-(olhos, nariz, cantos da boca). Sem o alinhamento, embeddings de ângulos
-diferentes da mesma pessoa ficam muito distantes — tornando o reconhecimento inviável.
+buffalo_l usa:
+  - det_10g.onnx   — detector de 10M parâmetros (mais preciso que det_500m)
+  - w600k_r50.onnx — reconhecedor ResNet50 (substitui MobileFaceNet do buffalo_sc)
+
+CLAHE (Contrast Limited Adaptive Histogram Equalization) é aplicado antes de
+gerar o embedding para normalizar variações de iluminação, que são comuns em
+câmeras externas com luz natural variável.
 
 Fluxo correto:
-  - Fotos de cadastro: detecta rosto + keypoints → align → embedding
-  - Pipeline ao vivo: SCRFD/Hailo detecta rosto → align com det_500m → embedding
+  - Fotos de cadastro: detecta rosto + keypoints → CLAHE → align → embedding
+  - Pipeline ao vivo: SCRFD/Hailo detecta rosto → CLAHE → align → embedding
 """
 from __future__ import annotations
 
@@ -19,10 +23,18 @@ import numpy as np
 
 from app.logger import logger
 
-_MODEL_NAME = "buffalo_sc"
+_MODEL_NAME = "buffalo_l"
 
-_recognizer = None   # ArcFaceONNX
-_detector   = None   # det_500m — usado para cadastro E para alinhar no pipeline ao vivo
+_recognizer = None   # ArcFaceONNX (ResNet50)
+_detector   = None   # det_10g — detector 10M parâmetros
+
+
+def _apply_clahe(img_bgr: np.ndarray) -> np.ndarray:
+    """CLAHE por canal de luminância para normalizar variações de iluminação."""
+    lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+    return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
 
 
 def _get_recognizer():
@@ -31,12 +43,12 @@ def _get_recognizer():
         return _recognizer
 
     from insightface.model_zoo import get_model
-    model_path = Path.home() / ".insightface/models/buffalo_sc/w600k_mbf.onnx"
+    model_path = Path.home() / ".insightface/models/buffalo_l/w600k_r50.onnx"
     if not model_path.exists():
         _ensure_models_downloaded()
     _recognizer = get_model(str(model_path), providers=["CPUExecutionProvider"])
     _recognizer.prepare(ctx_id=0)
-    logger.info("Reconhecedor carregado: {}", model_path.name)
+    logger.info("Reconhecedor carregado: {} (ResNet50)", model_path.name)
     return _recognizer
 
 
@@ -46,12 +58,12 @@ def _get_detector():
         return _detector
 
     from insightface.model_zoo import get_model
-    model_path = Path.home() / ".insightface/models/buffalo_sc/det_500m.onnx"
+    model_path = Path.home() / ".insightface/models/buffalo_l/det_10g.onnx"
     if not model_path.exists():
         _ensure_models_downloaded()
     _detector = get_model(str(model_path), providers=["CPUExecutionProvider"])
     _detector.prepare(ctx_id=0, input_size=(640, 640), det_thresh=0.4)
-    logger.info("Detector carregado: {}", model_path.name)
+    logger.info("Detector carregado: {} (10G)", model_path.name)
     return _detector
 
 
@@ -69,9 +81,10 @@ def _align_face(img_bgr: np.ndarray, kps: np.ndarray) -> np.ndarray:
 
 def _detect_align_crop(img_bgr: np.ndarray) -> Optional[np.ndarray]:
     """
-    Detecta o maior rosto, usa keypoints para alinhar e retorna crop BGR 112x112.
-    Retorna None se nenhum rosto for encontrado ou muito pequeno.
+    Aplica CLAHE, detecta o maior rosto, usa keypoints para alinhar e retorna
+    crop BGR 112x112. Retorna None se nenhum rosto for encontrado ou muito pequeno.
     """
+    img_bgr = _apply_clahe(img_bgr)
     det = _get_detector()
 
     h, w = img_bgr.shape[:2]
@@ -167,11 +180,12 @@ def get_face_embedding(face_roi_rgb: np.ndarray) -> Optional[np.ndarray]:
 
 def get_embeddings_from_frame(frame_rgb: np.ndarray) -> list[tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """
-    Detecta TODOS os rostos no frame completo e retorna lista de
+    Aplica CLAHE, detecta TODOS os rostos no frame completo e retorna lista de
     (bbox [x1,y1,x2,y2], keypoints, embedding) já alinhados.
     Usar no pipeline ao vivo para máxima precisão.
     """
     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+    frame_bgr = _apply_clahe(frame_bgr)
     det = _get_detector()
     rec = _get_recognizer()
 

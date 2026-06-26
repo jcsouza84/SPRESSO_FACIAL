@@ -2,6 +2,7 @@ import base64
 from datetime import datetime, timezone
 from pathlib import Path
 from dataclasses import dataclass
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
@@ -12,6 +13,7 @@ import numpy as np
 
 from app.camera.service import camera_service
 from app.detection.face_detector import face_detector, DetectionResult, DetectedFace
+from app.detection.person_face_detector import person_face_detector
 from app.recognition.matcher import face_matcher, UNKNOWN
 from app.recognition.embeddings import get_embeddings_from_frame, get_face_embedding
 from app.services.event_service import save_detection_event
@@ -103,15 +105,16 @@ async def detect_faces(
     persist: bool = Query(default=True, description="Salvar evento no banco"),
     include_frame: bool = Query(default=False, description="Incluir frame anotado em base64"),
     process_alerts: bool = Query(default=True, description="Processar alertas blacklist"),
-    camera_id: str = Query(default="imx0", description="ID da câmera a usar"),
+    camera_id: Optional[str] = Query(default=None, description="ID da câmera (padrão: câmera primária configurada)"),
 ) -> DetectionResponse:
     """Captura frame, detecta rostos, reconhece pessoas."""
-    _check_ready(camera_id=camera_id)
+    resolved_id = camera_id or await _get_active_camera_id()
+    _check_ready(camera_id=resolved_id)
     out = await _run_pipeline(
         dedup=dedup,
         persist=persist,
         process_alerts=process_alerts,
-        camera_id=camera_id,
+        camera_id=resolved_id,
     )
     return _to_response(out, include_frame=include_frame)
 
@@ -152,16 +155,30 @@ async def detection_snapshot(
 # Pipeline
 # ---------------------------------------------------------------------------
 
+async def _get_active_camera_id() -> str:
+    """Lê a câmera primária do banco de settings."""
+    try:
+        from app.services import settings_service
+        return await settings_service.get_setting("active_camera_id") or "imx0"
+    except Exception:
+        return "imx0"
+
+
 async def _run_pipeline(
     dedup: bool = True,
     save_frame_snapshot: bool = False,
     persist: bool = True,
     process_alerts: bool = True,
     save_crops: bool = True,
-    camera_id: str = "imx0",
+    camera_id: str | None = None,
 ) -> _PipelineOutput:
     if not persist:
         save_crops = False
+
+    if camera_id is None:
+        camera_id = await _get_active_camera_id()
+
+    quality = await _load_quality_settings()
 
     from app.camera.registry import camera_registry
     if camera_registry.is_registered(camera_id):
@@ -170,9 +187,42 @@ async def _run_pipeline(
             camera_service._save(frame)
     else:
         frame = camera_service.snapshot(save=save_frame_snapshot and persist)
-    result = face_detector.detect(frame.array)
+
+    result = face_detector.detect(
+        frame.array,
+        conf_override=quality.get("detection_confidence"),
+    )
+
+    # Filtro de tamanho mínimo para registro de evento
+    min_detect_px = quality.get("min_face_px_detect", _QUALITY_DEFAULTS["min_face_px_detect"])
+    result.faces = [
+        f for f in result.faces
+        if f.width >= min_detect_px and f.height >= min_detect_px
+    ]
+
+    # Filtro de sobreposição pessoa-rosto (requer PersonFaceDetector ativo)
+    if quality.get("require_person_overlap") and person_face_detector.is_ready and result.faces:
+        pf_result = person_face_detector.detect(
+            frame.array,
+            conf_override=quality.get("detection_confidence"),
+        )
+        if not pf_result.has_persons:
+            logger.debug("Nenhuma pessoa detectada pelo YOLO — {} rosto(s) ignorados", len(result.faces))
+            result.faces = []
+        else:
+            person_boxes = [[p.x1, p.y1, p.x2, p.y2] for p in pf_result.persons]
+            result.faces = [
+                f for f in result.faces
+                if any(_iou([f.x1, f.y1, f.x2, f.y2], np.array(pb)) >= 0.1
+                       for pb in person_boxes)
+            ]
+            logger.debug(
+                "PersonFace: {} pessoa(s) → {} rosto(s) com sobreposição mantidos",
+                len(pf_result.persons), len(result.faces),
+            )
+
     recognitions, face_crops = _recognize_and_save_crops(
-        frame.array, result, save_crops=save_crops,
+        frame.array, result, save_crops=save_crops, quality=quality,
     )
 
     annotated_jpeg = _encode_annotated_jpeg(frame.array, result, recognitions)
@@ -216,11 +266,28 @@ async def _run_pipeline(
         presence_service.record_event(matched_ids, result.count)
 
         if process_alerts:
+            min_alert_px  = quality.get("min_face_px_alert",    _QUALITY_DEFAULTS["min_face_px_alert"])
+            min_alert_conf = quality.get("alert_min_confidence", _QUALITY_DEFAULTS["alert_min_confidence"])
+
             for i, rec_box in enumerate(recognitions):
                 if not rec_box.matched:
                     continue
                 crop_path = face_crops[i].get("crop_path") if i < len(face_crops) else None
                 face_id = face_ids[i] if i < len(face_ids) else None
+
+                # Filtros de qualidade para disparo de alerta
+                if rec_box.width < min_alert_px or rec_box.height < min_alert_px:
+                    logger.debug(
+                        "Alerta suprimido — rosto muito pequeno ({}x{}px < {}px)",
+                        rec_box.width, rec_box.height, min_alert_px,
+                    )
+                    continue
+                if rec_box.recognition_confidence < min_alert_conf:
+                    logger.debug(
+                        "Alerta suprimido — confiança insuficiente ({:.1f}% < {:.1f}%)",
+                        rec_box.recognition_confidence, min_alert_conf,
+                    )
+                    continue
 
                 if rec_box.category == PersonCategory.blacklist.value:
                     from app.recognition.matcher import RecognitionResult
@@ -343,14 +410,83 @@ def _iou(b1: list[int], b2: np.ndarray) -> float:
     return inter / (a1 + a2 - inter + 1e-6)
 
 
-_SMALL_FACE_PX = 90
+_QUALITY_DEFAULTS: dict = {
+    "detection_confidence":  0.65,
+    "min_face_px_detect":    80,
+    "min_face_px_recognize": 120,
+    "min_face_px_alert":     150,
+    "alert_min_confidence":  50.0,
+    "require_frontal_face":  True,
+    "max_face_yaw_degrees":  40,
+    "require_person_overlap": False,
+}
+
+
+async def _load_quality_settings() -> dict:
+    """Lê parâmetros de qualidade do banco. Usa defaults se ausentes."""
+    try:
+        from app.services import settings_service
+        keys = list(_QUALITY_DEFAULTS.keys())
+        values = {k: await settings_service.get_setting(k) for k in keys}
+        result = {}
+        for k, v in values.items():
+            default = _QUALITY_DEFAULTS[k]
+            if v is None or v == "":
+                result[k] = default
+            elif isinstance(default, bool):
+                result[k] = v.lower() == "true"
+            elif isinstance(default, int):
+                result[k] = int(v)
+            elif isinstance(default, float):
+                result[k] = float(v)
+            else:
+                result[k] = v
+        return result
+    except Exception:
+        return dict(_QUALITY_DEFAULTS)
+
+
+def _estimate_yaw_from_kps(kps: np.ndarray) -> float:
+    """Estima ângulo de rotação horizontal (yaw) em graus a partir de 5 keypoints.
+    kps: (5, 2) — [olho_esq, olho_dir, nariz, boca_esq, boca_dir]
+    Retorna grau absoluto de yaw: 0 = frontal, ~90 = perfil.
+    """
+    if kps is None or len(kps) < 3:
+        return 0.0
+    left_eye  = kps[0]
+    right_eye = kps[1]
+    nose      = kps[2]
+    eye_width = abs(float(right_eye[0]) - float(left_eye[0]))
+    if eye_width < 1.0:
+        return 90.0
+    eye_center_x = (float(left_eye[0]) + float(right_eye[0])) / 2.0
+    nose_offset  = abs(float(nose[0]) - eye_center_x)
+    ratio = nose_offset / (eye_width / 2.0)
+    return min(ratio * 45.0, 90.0)
+
+
+def _estimate_yaw_from_bbox(width: int, height: int) -> float:
+    """Proxy de yaw via proporção da bbox quando não há keypoints.
+    Rostos frontais têm aspect ≈ 0.75-0.95; perfis ficam abaixo de 0.5.
+    """
+    aspect = width / (height + 1e-6)
+    if aspect >= 0.65:
+        return 0.0
+    # Mapeia aspect [0.65 → 0] para yaw [0 → 45]
+    return min((0.65 - aspect) / 0.65 * 90.0, 90.0)
 
 
 def _recognize_and_save_crops(
     frame_rgb: np.ndarray,
     result: DetectionResult,
     save_crops: bool = True,
+    quality: dict | None = None,
 ) -> tuple[list[FaceBox], list[dict]]:
+    q = quality or _QUALITY_DEFAULTS
+    min_rec_px   = q.get("min_face_px_recognize", _QUALITY_DEFAULTS["min_face_px_recognize"])
+    require_frontal = q.get("require_frontal_face", _QUALITY_DEFAULTS["require_frontal_face"])
+    max_yaw      = q.get("max_face_yaw_degrees",  _QUALITY_DEFAULTS["max_face_yaw_degrees"])
+
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
     boxes: list[FaceBox] = []
     crops: list[dict] = []
@@ -359,14 +495,15 @@ def _recognize_and_save_crops(
 
     for i, face in enumerate(result.faces):
         scrfd_box = [face.x1, face.y1, face.x2, face.y2]
-        face_is_small = face.width < _SMALL_FACE_PX or face.height < _SMALL_FACE_PX
+        face_is_small = face.width < min_rec_px or face.height < min_rec_px
 
-        best_idx, best_iou = -1, 0.0
-        for j, (ins_bbox, _, _) in enumerate(frame_embeddings):
+        best_idx, best_iou, best_kps = -1, 0.0, None
+        for j, (ins_bbox, kps, _) in enumerate(frame_embeddings):
             iou_val = _iou(scrfd_box, ins_bbox)
             if iou_val > best_iou:
                 best_iou = iou_val
                 best_idx = j
+                best_kps = kps
 
         roi = _extract_roi(frame_rgb, face)
         if save_crops:
@@ -374,6 +511,21 @@ def _recognize_and_save_crops(
             crop_path_str = str(crop_path)
         else:
             crop_path_str = None
+
+        # Filtro de frontalidade
+        if require_frontal:
+            if best_kps is not None and len(best_kps) >= 3:
+                yaw = _estimate_yaw_from_kps(best_kps)
+            else:
+                yaw = _estimate_yaw_from_bbox(face.width, face.height)
+            if yaw > max_yaw:
+                logger.debug(
+                    "Rosto #{} lateral (yaw≈{:.0f}° > {}°) — ignorado p/ reconhecimento",
+                    i, yaw, max_yaw,
+                )
+                boxes.append(FaceBox(**face.to_dict()))
+                crops.append({"crop_path": crop_path_str, "embedding": None})
+                continue
 
         if best_idx >= 0 and best_iou >= 0.3 and not face_is_small:
             logger.debug(

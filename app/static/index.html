@@ -258,9 +258,61 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 .cfg-acc-body{max-height:0;overflow:hidden;transition:max-height .35s ease}
 .cfg-accordion.cfg-open .cfg-acc-body{max-height:2000px}
 .cfg-acc-body-inner{padding:0 16px 16px}
+/* ====== MOBILE ELEMENTS (hidden on desktop) ====== */
+.mob-drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:199;backdrop-filter:blur(2px)}
+.mob-bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:58px;background:var(--surface);border-top:1px solid var(--border);z-index:60;flex-direction:row;align-items:stretch}
+.mob-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font-size:9px;font-family:var(--font-mono);letter-spacing:.04em;color:var(--muted);border:none;background:transparent;padding:0;transition:color .15s;text-transform:uppercase}
+.mob-nav-item.active{color:var(--accent)}
+.mob-nav-item .msi{font-size:22px;font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;transition:font-variation-settings .15s}
+.mob-nav-item.active .msi{font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24}
+.btn-ham{display:none;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;margin-right:6px;line-height:1;align-items:center;justify-content:center}
+.btn-ham .msi{font-size:26px;font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24}
+/* ====== MOBILE RESPONSIVE (max-width: 768px) ====== */
+@media(max-width:768px){
+  :root{--sidebar:0px}
+  /* sidebar vira drawer deslizante */
+  .sidebar{transform:translateX(-100%);transition:transform .3s ease;width:260px;z-index:200;box-shadow:4px 0 32px rgba(0,0,0,.65)}
+  .sidebar.mob-open{transform:translateX(0)}
+  .mob-drawer-overlay.show{display:block}
+  /* top-bar full width */
+  .top-bar{left:0;padding:0 12px}
+  .btn-ham{display:flex}
+  /* main sem margem lateral, padding inferior para o bottom nav */
+  .main{margin-left:0;padding:12px;padding-bottom:74px}
+  /* ocultar footer nativo */
+  .global-footer{display:none}
+  /* exibir bottom nav */
+  .mob-bottom-nav{display:flex}
+  /* toast acima do bottom nav */
+  .toast{bottom:66px;right:12px;max-width:calc(100vw - 24px)}
+  /* MONITOR — coluna única empilhada */
+  .monitor-grid{grid-template-columns:1fr;height:auto;gap:12px}
+  .panel-col{overflow-y:visible}
+  /* EVENTOS — ocultar coluna Câmera na tabela */
+  #page-events thead th:nth-child(4),
+  #events-tbody td:nth-child(4){display:none}
+  /* EVENTOS — header em coluna no mobile */
+  #page-events>div:first-child{flex-direction:column;align-items:flex-start;gap:10px}
+  #page-events>div:first-child>div{flex-wrap:wrap;width:100%;gap:6px}
+  /* PESSOAS — grade single col */
+  .person-grid{grid-template-columns:1fr}
+  /* PESSOAS — filter row em coluna */
+  .filter-row{flex-direction:column;align-items:stretch;gap:10px}
+  .filter-row .btn{width:100%;justify-content:center}
+  /* MÉTRICAS — 2 colunas no mobile */
+  .metric-grid{grid-template-columns:repeat(2,1fr)}
+  /* MODAIS — sheet inferior (style sheet) */
+  .modal-overlay{padding:0;align-items:flex-end}
+  .modal,.modal-wide{border-radius:16px 16px 0 0;max-width:100%;max-height:90vh}
+  /* blacklist overlay card */
+  .blacklist-card{max-width:100%;border-radius:16px 16px 0 0}
+}
 </style>
 </head>
 <body>
+
+<!-- MOBILE: drawer overlay (clique fecha sidebar) -->
+<div class="mob-drawer-overlay" id="mob-drawer-overlay" onclick="closeMobSidebar()"></div>
 
 <!-- ====== SIDEBAR ====== -->
 <aside class="sidebar">
@@ -297,6 +349,9 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 <!-- ====== TOP BAR ====== -->
 <header class="top-bar">
   <div class="tb-left">
+    <button class="btn-ham" onclick="toggleMobSidebar()" title="Menu" aria-label="Abrir menu">
+      <span class="material-symbols-outlined msi">menu</span>
+    </button>
     <span class="tb-title" id="page-title-bar">Monitor</span>
     <div class="tb-div"></div>
     <span class="tb-clock font-mono" id="live-clock">00:00:00</span>
@@ -531,10 +586,12 @@ input[type=range]{flex:1;accent-color:var(--accent)}
           <div class="form-group">
             <label>Cooldown de alerta blacklist (s)</label>
             <input type="number" id="cfg-alert-cooldown" min="10" max="86400" step="10" placeholder="300"/>
+            <span style="font-size:10px;color:var(--muted)">Tempo mínimo entre dois alertas da mesma pessoa. Evita spam de notificações.</span>
           </div>
           <div class="form-group">
             <label>Janela de deduplicação (s)</label>
             <input type="number" id="cfg-event-dedup" min="5" max="300" step="5" placeholder="30"/>
+            <span style="font-size:10px;color:var(--muted)">Suprime eventos idênticos registrados dentro deste intervalo de tempo.</span>
           </div>
           <div class="form-group">
             <label>Fuso horário (IANA)</label>
@@ -543,9 +600,90 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 
           <div style="height:1px;background:var(--border);margin:16px 0"></div>
 
+          <!-- Filtros de Qualidade de Detecção -->
+          <p style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Filtros de Qualidade</p>
+          <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Controlam quais rostos são processados, reconhecidos e disparam alertas. Valores mais altos = menos falsos positivos, mas também menos detecções.</p>
+
+          <div class="form-group">
+            <label>Confiança mínima do detector SCRFD (0–1)</label>
+            <div class="threshold-row">
+              <input type="range" id="cfg-det-confidence" min="0.30" max="0.95" step="0.05" value="0.65"
+                     oninput="document.getElementById('cfg-det-conf-val').textContent=parseFloat(this.value).toFixed(2)"/>
+              <span class="threshold-val" id="cfg-det-conf-val">0.65</span>
+            </div>
+            <span style="font-size:10px;color:var(--muted)">Score interno do modelo Hailo para aceitar uma detecção como rosto. Valores baixos (0.40) capturam mais rostos mas também mais falsos positivos (carros, objetos). Recomendado: 0.60–0.70.</span>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:12px 0"></div>
+          <p style="font-size:10px;color:var(--muted);margin-bottom:8px;font-style:italic">Tamanho mínimo do rosto (em pixels) para cada etapa do pipeline:</p>
+
+          <div class="form-group">
+            <label>Tamanho mínimo para <em>registrar evento</em> (px)</label>
+            <input type="number" id="cfg-min-face-detect" min="20" max="300" step="10" placeholder="80"/>
+            <span style="font-size:10px;color:var(--muted)">Rostos menores que este valor em pixels são ignorados completamente — não geram evento nem alerta. Equivale a distância mínima da câmera. Recomendado: 60–100 px.</span>
+          </div>
+
+          <div class="form-group">
+            <label>Tamanho mínimo para <em>reconhecer</em> (px)</label>
+            <input type="number" id="cfg-min-face-recognize" min="40" max="400" step="10" placeholder="120"/>
+            <span style="font-size:10px;color:var(--muted)">Abaixo deste tamanho o rosto é registrado mas não comparado com o banco de pessoas cadastradas — reduz comparações imprecisas de rostos pequenos/distantes. Recomendado: 100–150 px.</span>
+          </div>
+
+          <div class="form-group">
+            <label>Tamanho mínimo para <em>disparar alerta</em> (px)</label>
+            <input type="number" id="cfg-min-face-alert" min="60" max="500" step="10" placeholder="150"/>
+            <span style="font-size:10px;color:var(--muted)">Mesmo que reconhecido, o alerta via WhatsApp só é enviado se o rosto for maior que este valor. Garante que a pessoa está próxima o suficiente para uma identificação confiável. Recomendado: 130–200 px.</span>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:12px 0"></div>
+
+          <div class="form-group">
+            <label>Confiança mínima para disparar alerta (%)</label>
+            <div class="threshold-row">
+              <input type="range" id="cfg-alert-min-conf" min="30" max="99" step="1" value="50"
+                     oninput="document.getElementById('cfg-alert-min-conf-val').textContent=this.value+'%'"/>
+              <span class="threshold-val" id="cfg-alert-min-conf-val">50%</span>
+            </div>
+            <span style="font-size:10px;color:var(--muted)">Percentual de confiança do reconhecimento facial para enviar alerta. 50% = metade da confiança máxima. Aumentar reduz alertas errados mas pode perder identificações. Recomendado: 50–65%.</span>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:12px 0"></div>
+          <p style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Filtro de Ângulo Facial</p>
+
+          <div class="form-group">
+            <label style="flex-direction:row;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+              <input type="checkbox" id="cfg-require-frontal" style="width:auto;background:none;border:none;padding:0"/>
+              <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Exigir rosto frontal para reconhecer</span>
+            </label>
+            <span style="font-size:10px;color:var(--muted)">Quando ativo, rostos muito laterais ou de perfil são ignorados no reconhecimento. Elimina a maior fonte de falsos positivos em câmeras externas.</span>
+          </div>
+
+          <div class="form-group">
+            <label>Ângulo máximo de rotação horizontal (graus)</label>
+            <div class="threshold-row">
+              <input type="range" id="cfg-max-yaw" min="10" max="80" step="5" value="40"
+                     oninput="document.getElementById('cfg-max-yaw-val').textContent=this.value+'°'"/>
+              <span class="threshold-val" id="cfg-max-yaw-val">40°</span>
+            </div>
+            <span style="font-size:10px;color:var(--muted)">Ângulo máximo de desvio horizontal do rosto (yaw). 0°=completamente frontal, 90°=perfil puro. Valores menores são mais restritivos. Recomendado: 30°–45°.</span>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:12px 0"></div>
+          <p style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Verificação de Presença Humana</p>
+
+          <div class="form-group">
+            <label style="flex-direction:row;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+              <input type="checkbox" id="cfg-require-person" style="width:auto;background:none;border:none;padding:0"/>
+              <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Exigir corpo humano detectado (YOLOv5)</span>
+            </label>
+            <span style="font-size:10px;color:var(--muted)">Usa o modelo YOLOv5s PersonFace no Hailo para confirmar que existe uma pessoa no frame antes de processar rostos. Elimina alertas de fotos, TVs e objetos. Adiciona ~10ms de latência por frame.</span>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:16px 0"></div>
+
           <!-- Threshold -->
           <p style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Threshold de Reconhecimento</p>
-          <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Menor = mais restritivo. Maior = mais permissivo. <strong style="color:var(--text)">Recomendado: 0.40–0.55</strong></p>
+          <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Distância máxima entre embeddings para considerar a pessoa reconhecida. Menor = mais restritivo (menos falsos positivos). <strong style="color:var(--text)">Recomendado: 0.40–0.55</strong></p>
           <div class="threshold-row">
             <input type="range" id="slider-threshold" min="0.20" max="0.70" step="0.01" value="0.45" oninput="updateThresholdLabel(this.value)"/>
             <span class="threshold-val" id="label-threshold">0.45</span>
@@ -910,6 +1048,25 @@ input[type=range]{flex:1;accent-color:var(--accent)}
   </div>
 </div>
 
+<!-- ====== MOBILE BOTTOM NAV ====== -->
+<nav class="mob-bottom-nav" id="mob-bottom-nav">
+  <button class="mob-nav-item active" data-page="monitor" onclick="switchPage('monitor')">
+    <span class="material-symbols-outlined msi">monitoring</span>Monitor
+  </button>
+  <button class="mob-nav-item" data-page="persons" onclick="switchPage('persons')">
+    <span class="material-symbols-outlined msi">group</span>Pessoas
+  </button>
+  <button class="mob-nav-item" data-page="events" onclick="switchPage('events')">
+    <span class="material-symbols-outlined msi">history</span>Eventos
+  </button>
+  <button class="mob-nav-item" data-page="settings" onclick="switchPage('settings')">
+    <span class="material-symbols-outlined msi">tune</span>Calib.
+  </button>
+  <button class="mob-nav-item" data-page="config" onclick="switchPage('config')">
+    <span class="material-symbols-outlined msi">settings</span>Config.
+  </button>
+</nav>
+
 <!-- ====== FOOTER ====== -->
 <footer class="global-footer">
   <span class="footer-l">SPRESSO · Monitoramento ativo</span>
@@ -947,16 +1104,30 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
+// ====== MOBILE SIDEBAR ======
+function toggleMobSidebar() {
+  document.querySelector('.sidebar').classList.toggle('mob-open');
+  document.getElementById('mob-drawer-overlay').classList.toggle('show');
+}
+function closeMobSidebar() {
+  document.querySelector('.sidebar').classList.remove('mob-open');
+  document.getElementById('mob-drawer-overlay').classList.remove('show');
+}
+
 // ====== NAV ======
 function switchPage(page) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.mob-nav-item').forEach(n => n.classList.remove('active'));
   const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
   if (navItem) navItem.classList.add('active');
+  const mobNavItem = document.querySelector(`.mob-nav-item[data-page="${page}"]`);
+  if (mobNavItem) mobNavItem.classList.add('active');
   const pageEl = document.getElementById('page-' + page);
   if (pageEl) pageEl.classList.add('active');
   document.getElementById('page-title-bar').textContent =
     {monitor:'Monitor',persons:'Pessoas',events:'Eventos',settings:'Calibração',config:'Configurações'}[page] || page;
+  closeMobSidebar();
   if (document.getElementById('modal-add-photo').classList.contains('open')) closeModal('modal-add-photo');
   if (page === 'persons') loadPersons();
   if (page === 'events') loadEvents(true);
@@ -1944,6 +2115,21 @@ async function loadGeneralSettings() {
     const dedup = parseInt(data.event_dedup_seconds) || 30;
     document.getElementById('cfg-event-dedup').value = dedup;
     document.getElementById('cfg-timezone').value = data.app_timezone || 'America/Maceio';
+    // Filtros de qualidade
+    const detConf = parseFloat(data.detection_confidence) || 0.65;
+    document.getElementById('cfg-det-confidence').value = detConf;
+    document.getElementById('cfg-det-conf-val').textContent = detConf.toFixed(2);
+    document.getElementById('cfg-min-face-detect').value    = parseInt(data.min_face_px_detect)    || 80;
+    document.getElementById('cfg-min-face-recognize').value = parseInt(data.min_face_px_recognize) || 120;
+    document.getElementById('cfg-min-face-alert').value     = parseInt(data.min_face_px_alert)     || 150;
+    const alertConf = parseInt(data.alert_min_confidence) || 50;
+    document.getElementById('cfg-alert-min-conf').value = alertConf;
+    document.getElementById('cfg-alert-min-conf-val').textContent = alertConf + '%';
+    document.getElementById('cfg-require-frontal').checked = data.require_frontal_face !== 'false';
+    const maxYaw = parseInt(data.max_face_yaw_degrees) || 40;
+    document.getElementById('cfg-max-yaw').value = maxYaw;
+    document.getElementById('cfg-max-yaw-val').textContent = maxYaw + '°';
+    document.getElementById('cfg-require-person').checked = data.require_person_overlap === 'true';
     // Threshold
     const thr = parseFloat(data.recognition_threshold) || 0.45;
     const sliderEl = document.getElementById('slider-threshold');
@@ -1961,15 +2147,31 @@ async function loadGeneralSettings() {
 }
 
 async function saveDetectionSettings() {
-  const auto = document.getElementById('cfg-detection-auto').checked;
-  const fps = parseFloat(document.getElementById('cfg-detection-fps').value);
-  const cooldown = parseInt(document.getElementById('cfg-alert-cooldown').value) || 300;
-  const dedup = parseInt(document.getElementById('cfg-event-dedup').value) || 30;
-  const tz = (document.getElementById('cfg-timezone').value || '').trim() || 'America/Maceio';
+  const auto      = document.getElementById('cfg-detection-auto').checked;
+  const fps       = parseFloat(document.getElementById('cfg-detection-fps').value);
+  const cooldown  = parseInt(document.getElementById('cfg-alert-cooldown').value) || 300;
+  const dedup     = parseInt(document.getElementById('cfg-event-dedup').value) || 30;
+  const tz        = (document.getElementById('cfg-timezone').value || '').trim() || 'America/Maceio';
+  const detConf   = parseFloat(document.getElementById('cfg-det-confidence').value);
+  const minDet    = parseInt(document.getElementById('cfg-min-face-detect').value) || 80;
+  const minRec    = parseInt(document.getElementById('cfg-min-face-recognize').value) || 120;
+  const minAlert  = parseInt(document.getElementById('cfg-min-face-alert').value) || 150;
+  const alertConf = parseFloat(document.getElementById('cfg-alert-min-conf').value);
+  const frontal   = document.getElementById('cfg-require-frontal').checked;
+  const maxYaw    = parseInt(document.getElementById('cfg-max-yaw').value) || 40;
+  const person    = document.getElementById('cfg-require-person').checked;
   try {
     const r = await fetch(API + '/settings', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ detection_auto: auto, detection_fps: fps, alert_cooldown_seconds: cooldown, event_dedup_seconds: dedup, app_timezone: tz }),
+      body: JSON.stringify({
+        detection_auto: auto, detection_fps: fps,
+        alert_cooldown_seconds: cooldown, event_dedup_seconds: dedup, app_timezone: tz,
+        detection_confidence: detConf,
+        min_face_px_detect: minDet, min_face_px_recognize: minRec, min_face_px_alert: minAlert,
+        alert_min_confidence: alertConf,
+        require_frontal_face: frontal, max_face_yaw_degrees: maxYaw,
+        require_person_overlap: person,
+      }),
     });
     if (!r.ok) throw new Error((await r.json()).detail);
     showToast('Salvo', 'Configurações de detecção atualizadas.', 'success');

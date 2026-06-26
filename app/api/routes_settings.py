@@ -39,6 +39,15 @@ class SettingsUpdate(BaseModel):
     alert_cooldown_seconds: Optional[int] = None
     event_dedup_seconds: Optional[int] = None
     app_timezone: Optional[str] = None
+    # Qualidade de detecção e filtros
+    detection_confidence: Optional[float] = None
+    min_face_px_detect: Optional[int] = None
+    min_face_px_recognize: Optional[int] = None
+    min_face_px_alert: Optional[int] = None
+    alert_min_confidence: Optional[float] = None
+    require_frontal_face: Optional[bool] = None
+    max_face_yaw_degrees: Optional[int] = None
+    require_person_overlap: Optional[bool] = None
 
 
 class WhatsappTestBody(BaseModel):
@@ -132,6 +141,23 @@ async def save_settings(body: SettingsUpdate) -> dict:
         from app.config import settings as cfg
         cfg.app_timezone = body.app_timezone
         logger.info("Timezone atualizado para {}", body.app_timezone)
+    # Filtros de qualidade de detecção
+    if body.detection_confidence is not None:
+        data["detection_confidence"] = str(body.detection_confidence)
+    if body.min_face_px_detect is not None:
+        data["min_face_px_detect"] = str(body.min_face_px_detect)
+    if body.min_face_px_recognize is not None:
+        data["min_face_px_recognize"] = str(body.min_face_px_recognize)
+    if body.min_face_px_alert is not None:
+        data["min_face_px_alert"] = str(body.min_face_px_alert)
+    if body.alert_min_confidence is not None:
+        data["alert_min_confidence"] = str(body.alert_min_confidence)
+    if body.require_frontal_face is not None:
+        data["require_frontal_face"] = str(body.require_frontal_face).lower()
+    if body.max_face_yaw_degrees is not None:
+        data["max_face_yaw_degrees"] = str(body.max_face_yaw_degrees)
+    if body.require_person_overlap is not None:
+        data["require_person_overlap"] = str(body.require_person_overlap).lower()
 
     if data:
         await settings_service.set_settings(data)

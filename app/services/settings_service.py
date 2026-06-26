@@ -33,6 +33,15 @@ _DEFAULTS: dict[str, str] = {
     "recognition_threshold":     "",   # vazio = usa config.py default
     # Alertas
     "alert_cooldown_seconds":    "",   # vazio = usa config.py default (300s)
+    # Qualidade de detecção e filtros
+    "detection_confidence":      "0.65",  # confiança mínima SCRFD/YOLO (0-1)
+    "min_face_px_detect":        "80",    # tamanho mínimo para registrar evento
+    "min_face_px_recognize":     "120",   # tamanho mínimo para tentar reconhecer
+    "min_face_px_alert":         "150",   # tamanho mínimo para disparar alerta
+    "alert_min_confidence":      "50.0",  # % mínima de confiança para alertar
+    "require_frontal_face":      "true",  # rejeitar rostos laterais
+    "max_face_yaw_degrees":      "40",    # ângulo máximo de rotação horizontal
+    "require_person_overlap":    "false", # exigir detecção de pessoa (YOLOv5)
     "event_dedup_seconds":       "",   # vazio = usa config.py default (30s)
     # Localização
     "app_timezone":              "America/Maceio",

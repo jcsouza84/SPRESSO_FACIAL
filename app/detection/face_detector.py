@@ -99,7 +99,8 @@ class FaceDetector:
             return
 
         logger.info("Inicializando Hailo-8 + SCRFD 2.5G")
-        self._vdevice = hp.VDevice()
+        from app.detection.hailo_device import get_vdevice
+        self._vdevice = get_vdevice()
         hef = hp.HEF(str(MODEL_PATH))
 
         cfg = hp.ConfigureParams.create_from_hef(
@@ -120,8 +121,8 @@ class FaceDetector:
     def close(self) -> None:
         if self._vdevice is None:
             return
-        logger.info("Encerrando FaceDetector")
-        self._vdevice.release()
+        logger.info("Encerrando FaceDetector (SCRFD)")
+        # VDevice é compartilhado — não liberamos aqui
         self._vdevice = None
         self._network  = None
 
@@ -132,7 +133,11 @@ class FaceDetector:
     # ------------------------------------------------------------------
     # Inferência pública
     # ------------------------------------------------------------------
-    def detect(self, frame_rgb: np.ndarray) -> DetectionResult:
+    def detect(
+        self,
+        frame_rgb: np.ndarray,
+        conf_override: float | None = None,
+    ) -> DetectionResult:
         if not self.is_ready:
             raise RuntimeError("FaceDetector não iniciado. Chame open() primeiro.")
 
@@ -148,9 +153,9 @@ class FaceDetector:
                 raw_outputs = pipeline.infer(input_batch)
 
         inference_ms = (time.perf_counter() - t0) * 1000
-
-        faces = self._postprocess(raw_outputs, scale_x, scale_y, orig_w, orig_h)
-        logger.debug("Detecção: {} rosto(s) em {:.1f}ms", len(faces), inference_ms)
+        conf = conf_override if conf_override is not None else self._conf_thresh
+        faces = self._postprocess(raw_outputs, scale_x, scale_y, orig_w, orig_h, conf_thresh=conf)
+        logger.debug("Detecção: {} rosto(s) em {:.1f}ms (conf={:.2f})", len(faces), inference_ms, conf)
 
         return DetectionResult(
             faces=faces,
@@ -183,7 +188,11 @@ class FaceDetector:
         scale_y: float,
         orig_w: int,
         orig_h: int,
+        conf_thresh: float | None = None,
     ) -> list[DetectedFace]:
+        if conf_thresh is None:
+            conf_thresh = self._conf_thresh
+
         all_boxes  : list[np.ndarray] = []
         all_scores : list[np.ndarray] = []
 
@@ -193,14 +202,13 @@ class FaceDetector:
             bbox_raw = outputs[bbox_name][0]  # (H, W, 8)
 
             grid_h, grid_w = cls_raw.shape[:2]
-            # Saídas cls já são probabilidades (HailoRT dequantiza + sigmoid)
             scores = cls_raw.reshape(-1)  # (H*W*NUM_ANCHORS,)
 
             anchor_centers = self._make_anchor_centers(grid_h, grid_w, stride)
             bboxes_raw = bbox_raw.reshape(-1, NUM_ANCHORS, 4)
             bboxes = self._decode_bboxes(anchor_centers, bboxes_raw, stride)
 
-            mask = scores >= self._conf_thresh
+            mask = scores >= conf_thresh
             all_boxes.append(bboxes[mask])
             all_scores.append(scores[mask])
 
@@ -210,7 +218,6 @@ class FaceDetector:
         boxes  = np.concatenate(all_boxes,  axis=0)
         scores = np.concatenate(all_scores, axis=0)
 
-        # Escala de volta para resolução original e clipa nos limites do frame
         boxes[:, 0] = np.clip(boxes[:, 0] * scale_x, 0, orig_w)
         boxes[:, 1] = np.clip(boxes[:, 1] * scale_y, 0, orig_h)
         boxes[:, 2] = np.clip(boxes[:, 2] * scale_x, 0, orig_w)
@@ -222,6 +229,11 @@ class FaceDetector:
             x1, y1, x2, y2 = boxes[i].astype(int)
             w, h = x2 - x1, y2 - y1
             if w < self._min_face_size or h < self._min_face_size:
+                continue
+            # Descarta bboxes com proporção incompatível com rostos humanos
+            aspect = w / (h + 1e-6)
+            if aspect < 0.3 or aspect > 2.0:
+                logger.debug("Bbox descartado (proporção {:.2f} — não é rosto)", aspect)
                 continue
             faces.append(DetectedFace(
                 x1=int(x1), y1=int(y1),
