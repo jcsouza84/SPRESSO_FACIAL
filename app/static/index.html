@@ -2764,41 +2764,131 @@ async function runCalFrame() {
   }
 }
 
+function _calCfg() {
+  // Lê os valores atuais dos sliders de calibração para comparação
+  return {
+    detConf:    parseFloat(document.getElementById('cal-det-confidence')?.value || '0.65'),
+    minDetect:  parseInt(document.getElementById('cal-min-detect')?.value      || '80'),
+    minRec:     parseInt(document.getElementById('cal-min-recognize')?.value   || '120'),
+    minAlert:   parseInt(document.getElementById('cal-min-alert')?.value       || '150'),
+    alertConf:  parseFloat(document.getElementById('cal-alert-conf')?.value   || '50'),
+    threshold:  parseFloat(document.getElementById('cal-threshold')?.value    || '0.45'),
+    frontal:    document.getElementById('cal-frontal')?.checked ?? true,
+    maxYaw:     parseInt(document.getElementById('cal-max-yaw')?.value         || '40'),
+  };
+}
+
 function renderCalFaceCards(faces) {
   const grid = document.getElementById('cal-face-grid');
-  if (!faces.length) { grid.innerHTML = ''; return; }
+  if (!faces.length) {
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0">Nenhum rosto detectado neste frame.</div>';
+    return;
+  }
+
+  const cfg = _calCfg();
 
   grid.innerHTML = faces.map((f, i) => {
     const isFiltered = !!f.filter_reason;
     const isMatched  = f.matched && !isFiltered;
     const cls = isFiltered ? 'filtered' : isMatched ? 'matched' : 'unknown';
 
-    const sizeColor = (f.width >= 150 && f.height >= 150) ? 'ok' : (f.width >= 80 ? '' : 'bad');
-    const yawColor  = f.yaw <= 25 ? 'ok' : f.yaw <= 45 ? 'warn' : 'bad';
-    const confColor = f.recognition_confidence >= 65 ? 'ok' : f.recognition_confidence >= 40 ? 'warn' : 'bad';
-    const detColor  = f.confidence >= 0.65 ? 'ok' : f.confidence >= 0.45 ? 'warn' : 'bad';
+    // --- Etapas do pipeline como checklist ---
+    const steps = [];
 
-    let title = `Rosto #${i + 1}`;
-    if (isFiltered) title += ` — <span style="color:var(--danger)">${esc(f.filter_reason)}</span>`;
-    else if (isMatched) title += ` — <span style="color:var(--success)">${esc(f.person_name || '?')}</span>`;
-    else title += ' — <span style="color:var(--muted)">Desconhecido</span>';
+    // Etapa 1: Detector SCRFD
+    const detPct = (f.confidence * 100);
+    const detCfgPct = cfg.detConf * 100;
+    if (detPct >= detCfgPct) {
+      steps.push({ ok: true,  text: `Detector: ${detPct.toFixed(0)}% ≥ ${detCfgPct.toFixed(0)}% mínimo` });
+    } else {
+      steps.push({ ok: false, text: `Detector: ${detPct.toFixed(0)}% < ${detCfgPct.toFixed(0)}% mínimo — abaixe "Confiança mínima"` });
+    }
+
+    // Etapa 2: Tamanho para registrar
+    const faceMin = Math.min(f.width, f.height);
+    if (faceMin >= cfg.minDetect) {
+      steps.push({ ok: true,  text: `Tamanho: ${f.width}×${f.height}px ≥ ${cfg.minDetect}px (registrar)` });
+    } else {
+      steps.push({ ok: false, text: `Tamanho: ${f.width}×${f.height}px < ${cfg.minDetect}px — abaixe "Min. registrar" ou aproxime-se da câmera` });
+    }
+
+    // Etapa 3: Tamanho para reconhecer
+    if (faceMin >= cfg.minRec) {
+      steps.push({ ok: true,  text: `Tamanho p/ reconhecer: ${faceMin}px ≥ ${cfg.minRec}px` });
+    } else {
+      steps.push({ ok: 'warn', text: `Tamanho p/ reconhecer: ${faceMin}px < ${cfg.minRec}px — reconhecimento ignorado` });
+    }
+
+    // Etapa 4: Frontalidade
+    const yaw = f.yaw ?? 0;
+    if (!cfg.frontal) {
+      steps.push({ ok: 'skip', text: `Ângulo: ${yaw.toFixed(0)}° (filtro frontal desativado)` });
+    } else if (isFiltered && f.filter_reason === 'Rosto lateral') {
+      steps.push({ ok: false, text: `Ângulo: ${yaw.toFixed(0)}° > ${cfg.maxYaw}° — aumente "Ângulo máximo" ou vire para a câmera` });
+    } else {
+      steps.push({ ok: true,  text: `Ângulo: ${yaw.toFixed(0)}° ≤ ${cfg.maxYaw}° (frontal ok)` });
+    }
+
+    // Etapa 5: Reconhecimento
+    if (!isFiltered && faceMin >= cfg.minRec) {
+      if (isMatched) {
+        const dist = f.recognition_distance ?? 1;
+        steps.push({ ok: true, text: `Reconhecido: ${esc(f.person_name)} (dist ${dist.toFixed(3)} ≤ thr ${cfg.threshold.toFixed(2)})` });
+      } else {
+        const dist = f.recognition_distance ?? 1;
+        if (dist <= cfg.threshold) {
+          steps.push({ ok: true, text: `Reconhecido: correspondência encontrada` });
+        } else {
+          steps.push({ ok: false, text: `Desconhecido: dist ${dist.toFixed(3)} > thr ${cfg.threshold.toFixed(2)} — cadastre esta pessoa na aba Pessoas ou aumente o Threshold` });
+        }
+      }
+    }
+
+    // Etapa 6: Confiança do reconhecimento para alerta
+    if (isMatched) {
+      const recConf = f.recognition_confidence ?? 0;
+      if (recConf >= cfg.alertConf) {
+        steps.push({ ok: true,  text: `Confiança p/ alerta: ${recConf.toFixed(0)}% ≥ ${cfg.alertConf.toFixed(0)}% — alerta SERÁ enviado` });
+      } else {
+        steps.push({ ok: 'warn', text: `Confiança p/ alerta: ${recConf.toFixed(0)}% < ${cfg.alertConf.toFixed(0)}% — alerta NÃO será enviado` });
+      }
+
+      // Etapa 7: Tamanho para alerta
+      if (faceMin >= cfg.minAlert) {
+        steps.push({ ok: true,  text: `Tamanho p/ alerta: ${faceMin}px ≥ ${cfg.minAlert}px` });
+      } else {
+        steps.push({ ok: 'warn', text: `Tamanho p/ alerta: ${faceMin}px < ${cfg.minAlert}px — alerta NÃO será enviado` });
+      }
+    }
+
+    const stepsHtml = steps.map(s => {
+      const icon  = s.ok === true ? '✅' : s.ok === 'warn' ? '⚠️' : s.ok === 'skip' ? '⏭️' : '❌';
+      const color = s.ok === true ? 'var(--success)' : s.ok === 'warn' ? '#f0b429' : s.ok === 'skip' ? 'var(--muted)' : 'var(--danger)';
+      return `<div style="display:flex;gap:7px;align-items:flex-start;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        <span style="flex-shrink:0;font-size:12px">${icon}</span>
+        <span style="font-size:11px;color:${color};line-height:1.4">${s.text}</span>
+      </div>`;
+    }).join('');
+
+    let titleLabel = `Rosto #${i + 1}`;
+    const titleSuffix = isFiltered
+      ? `<span style="color:var(--danger);font-weight:400;font-size:11px"> — ${esc(f.filter_reason)}</span>`
+      : isMatched
+        ? `<span style="color:var(--success);font-weight:400;font-size:11px"> — ${esc(f.person_name || '?')} ${f.recognition_confidence?.toFixed(0)}%</span>`
+        : `<span style="color:var(--muted);font-weight:400;font-size:11px"> — Desconhecido</span>`;
 
     return `<div class="cal-face-card ${cls}">
-      <div class="cal-face-header">
-        <div class="cal-face-title">${title}</div>
+      <div class="cal-face-header" style="margin-bottom:8px">
+        <div class="cal-face-title">${titleLabel}${titleSuffix}</div>
       </div>
-      <div class="cal-face-pills">
-        <span class="cal-pill ${sizeColor}">📐 ${f.width}×${f.height}px</span>
-        <span class="cal-pill ${yawColor}">↔ Yaw ${f.yaw?.toFixed(0) ?? '?'}°</span>
-        <span class="cal-pill ${detColor}">🎯 Det ${(f.confidence * 100).toFixed(0)}%</span>
-        ${isMatched ? `<span class="cal-pill ${confColor}">✓ Rec ${f.recognition_confidence?.toFixed(0)}%</span>` : ''}
-        ${!isFiltered && !isMatched ? `<span class="cal-pill bad">? dist ${f.recognition_distance?.toFixed(3)}</span>` : ''}
-      </div>
+      <div style="display:flex;flex-direction:column;gap:0">${stepsHtml}</div>
     </div>`;
   }).join('');
 }
 
 async function calReloadSettings() {
+  const btn = document.querySelector('[onclick="calReloadSettings()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Carregando...'; }
   try {
     const data = await fetch(API + '/settings').then(r => r.json());
     const set = (id, val, suffix) => {
@@ -2826,7 +2916,17 @@ async function calReloadSettings() {
     const maxYaw = parseInt(data.max_face_yaw_degrees) || 40;
     set('cal-max-yaw', maxYaw); setVal('cal-yaw-val', maxYaw, 'deg');
     document.getElementById('cal-person').checked = data.require_person_overlap === 'true';
-  } catch(e) { showToast('Erro', 'Não foi possível carregar configurações', 'error'); }
+    if (btn) {
+      btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px;color:var(--success)">check_circle</span> Carregado';
+      setTimeout(() => {
+        if (btn) btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px">sync</span>Recarregar do banco';
+        if (btn) btn.disabled = false;
+      }, 2000);
+    }
+  } catch(e) {
+    if (btn) { btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px">sync</span>Recarregar do banco'; btn.disabled = false; }
+    showToast('Erro', 'Não foi possível carregar configurações', 'error');
+  }
 }
 
 function calSliderInput(key, rawVal, labelId, fmt) {
