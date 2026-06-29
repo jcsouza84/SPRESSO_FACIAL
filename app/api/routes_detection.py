@@ -42,6 +42,8 @@ class FaceBox(BaseModel):
     category: str | None = None
     recognition_confidence: float = 0.0
     recognition_distance: float = 1.0
+    yaw: float = 0.0                        # ângulo de rotação horizontal estimado (graus)
+    filter_reason: str | None = None        # motivo do descarte pelo filtro de qualidade
 
 
 class AlertSummary(BaseModel):
@@ -70,6 +72,7 @@ class DetectionResponse(BaseModel):
     active_alert: AlertSummary | None = None
     threshold: float = 0.62
     frame_base64: str | None = None
+    detection_stats: dict = {}              # diagnóstico para tela de calibração
 
 
 @dataclass
@@ -82,6 +85,7 @@ class _PipelineOutput:
     deduplicated: bool
     event_id: int | None
     timestamp: datetime
+    detection_stats: dict = None
     alerts: list[AlertSummary]
     active_alert: AlertSummary | None
 
@@ -195,10 +199,12 @@ async def _run_pipeline(
 
     # Filtro de tamanho mínimo para registro de evento
     min_detect_px = quality.get("min_face_px_detect", _QUALITY_DEFAULTS["min_face_px_detect"])
+    scrfd_total = len(result.faces)
     result.faces = [
         f for f in result.faces
         if f.width >= min_detect_px and f.height >= min_detect_px
     ]
+    n_filtered_size = scrfd_total - len(result.faces)
 
     # Filtro de sobreposição pessoa-rosto (requer PersonFaceDetector ativo)
     if quality.get("require_person_overlap") and person_face_detector.is_ready and result.faces:
@@ -326,6 +332,17 @@ async def _run_pipeline(
         if active:
             active_alert = _alert_to_summary(active[0])
 
+    n_filtered_yaw = sum(1 for r in recognitions if r.filter_reason == "Rosto lateral")
+    n_recognized   = sum(1 for r in recognitions if r.matched)
+    stats = {
+        "scrfd_total":      scrfd_total,
+        "filtered_size":    n_filtered_size,
+        "filtered_yaw":     n_filtered_yaw,
+        "filtered_person":  0,
+        "processed":        len([r for r in recognitions if r.filter_reason is None]),
+        "recognized":       n_recognized,
+    }
+
     return _PipelineOutput(
         result=result,
         recognitions=recognitions,
@@ -337,6 +354,7 @@ async def _run_pipeline(
         timestamp=now,
         alerts=alerts,
         active_alert=active_alert,
+        detection_stats=stats,
     )
 
 
@@ -361,6 +379,7 @@ def _to_response(out: _PipelineOutput, include_frame: bool = False) -> Detection
         active_alert=out.active_alert,
         threshold=settings.recognition_threshold,
         frame_base64=frame_b64,
+        detection_stats=out.detection_stats or {},
     )
 
 
@@ -512,20 +531,22 @@ def _recognize_and_save_crops(
         else:
             crop_path_str = None
 
+        # Estimativa de yaw (sempre — para diagnóstico na calibração)
+        if best_kps is not None and len(best_kps) >= 3:
+            face_yaw = _estimate_yaw_from_kps(best_kps)
+        else:
+            face_yaw = _estimate_yaw_from_bbox(face.width, face.height)
+
         # Filtro de frontalidade
-        if require_frontal:
-            if best_kps is not None and len(best_kps) >= 3:
-                yaw = _estimate_yaw_from_kps(best_kps)
-            else:
-                yaw = _estimate_yaw_from_bbox(face.width, face.height)
-            if yaw > max_yaw:
-                logger.debug(
-                    "Rosto #{} lateral (yaw≈{:.0f}° > {}°) — ignorado p/ reconhecimento",
-                    i, yaw, max_yaw,
-                )
-                boxes.append(FaceBox(**face.to_dict()))
-                crops.append({"crop_path": crop_path_str, "embedding": None})
-                continue
+        if require_frontal and face_yaw > max_yaw:
+            logger.debug(
+                "Rosto #{} lateral (yaw≈{:.0f}° > {}°) — ignorado p/ reconhecimento",
+                i, face_yaw, max_yaw,
+            )
+            boxes.append(FaceBox(**face.to_dict(), yaw=round(face_yaw, 1),
+                                 filter_reason="Rosto lateral"))
+            crops.append({"crop_path": crop_path_str, "embedding": None})
+            continue
 
         if best_idx >= 0 and best_iou >= 0.3 and not face_is_small:
             logger.debug(
@@ -559,6 +580,7 @@ def _recognize_and_save_crops(
             category=rec.category,
             recognition_confidence=rec.confidence,
             recognition_distance=rec.distance,
+            yaw=round(face_yaw, 1),
         ))
         crops.append({"crop_path": crop_path_str, "embedding": emb_bytes})
 

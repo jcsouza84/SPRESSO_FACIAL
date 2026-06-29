@@ -111,6 +111,58 @@ async def test_photo(file: UploadFile = File(...)):
     }
 
 
+@router.post("/reload-embeddings")
+async def reload_embeddings():
+    """
+    Recalcula embeddings de TODAS as fotos (inclusive as que já têm embedding).
+    Necessário ao trocar de modelo (ex: buffalo_sc → buffalo_l).
+    Todos os embeddings existentes são sobrescritos com o modelo atual em memória.
+    """
+    async with get_session() as session:
+        result = await session.execute(select(PersonPhoto))
+        photos = result.scalars().all()
+
+    if not photos:
+        return {"message": "Nenhuma foto cadastrada.", "reloaded": 0, "failed": 0}
+
+    reloaded = 0
+    failed   = 0
+
+    for photo in photos:
+        p = Path(photo.path)
+        if not p.exists():
+            failed += 1
+            continue
+
+        emb = get_embedding_from_file(p)
+        if emb is None:
+            failed += 1
+            logger.warning("Embedding falhou p/ photo_id={}", photo.id)
+            continue
+
+        async with get_session() as session:
+            result = await session.execute(
+                select(PersonPhoto).where(PersonPhoto.id == photo.id)
+            )
+            db_photo = result.scalar_one_or_none()
+            if db_photo:
+                db_photo.embedding = emb.tobytes()
+                await session.commit()
+
+        reloaded += 1
+        logger.info("Embedding recalculado: photo_id={} person_id={}", photo.id, photo.person_id)
+
+    await face_matcher.load_all()
+    logger.info("Cache recarregado após reload-embeddings: {} pessoa(s)", face_matcher.persons_in_cache)
+
+    return {
+        "message": f"{reloaded} embedding(s) recalculado(s), {failed} falha(s).",
+        "reloaded": reloaded,
+        "failed":   failed,
+        "persons_in_cache": face_matcher.persons_in_cache,
+    }
+
+
 @router.post("/regen-embeddings")
 async def regen_embeddings():
     """

@@ -213,6 +213,39 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .footer-l{color:var(--muted)}
 .footer-r{display:flex;align-items:center;gap:6px;color:var(--success)}
 .footer-dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+/* ====== CALIBRAÇÃO ====== */
+.cal-layout{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
+@media(max-width:900px){.cal-layout{grid-template-columns:1fr}}
+.cal-frame-wrap{position:relative;background:var(--surface-high);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;min-height:200px;display:flex;align-items:center;justify-content:center}
+.cal-frame-wrap img{width:100%;display:block;border-radius:var(--r-lg)}
+.cal-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px;color:var(--muted);text-align:center}
+.cal-stats{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.cal-stat{background:var(--surface-high);border:1px solid var(--border);border-radius:var(--r);padding:6px 12px;font-family:var(--font-mono);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:70px}
+.cal-stat-val{font-size:18px;font-weight:700;color:var(--accent)}
+.cal-stat-val.danger{color:var(--danger)}
+.cal-stat-val.success{color:var(--success)}
+.cal-stat-val.warn{color:#f0b429}
+.cal-stat-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.cal-face-grid{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.cal-face-card{background:var(--surface-high);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;font-size:12px}
+.cal-face-card.filtered{border-color:rgba(255,100,100,.35);background:rgba(255,100,100,.05)}
+.cal-face-card.matched{border-color:rgba(0,228,117,.35);background:rgba(0,228,117,.05)}
+.cal-face-card.unknown{border-color:rgba(0,229,255,.2)}
+.cal-face-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cal-face-title{font-family:var(--font-title);font-weight:700;font-size:13px}
+.cal-face-pills{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.cal-pill{font-family:var(--font-mono);font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.07);color:var(--muted)}
+.cal-pill.ok{background:rgba(0,228,117,.12);color:var(--success)}
+.cal-pill.warn{background:rgba(240,180,41,.12);color:#f0b429}
+.cal-pill.bad{background:rgba(255,100,100,.12);color:var(--danger)}
+.cal-sliders{background:var(--surface-high);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;display:flex;flex-direction:column;gap:0}
+.cal-slider-group{padding:10px 0;border-bottom:1px solid var(--border)}
+.cal-slider-group:last-child{border-bottom:none}
+.cal-slider-label{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px}
+.cal-slider-desc{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4}
+.cal-section-title{font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:8px 0 4px;opacity:.6}
+.cal-btn-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.cal-latency{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
 /* ====== UTILS ====== */
 .page{display:none}
 .page.active{display:block}
@@ -496,10 +529,167 @@ input[type=range]{flex:1;accent-color:var(--accent)}
 
   <!-- ===== CALIBRAÇÃO ===== -->
   <div class="page" id="page-settings">
-    <h2 style="font-family:var(--font-title);font-size:18px;font-weight:700;margin-bottom:20px">Calibração</h2>
-    <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h2 style="font-family:var(--font-title);font-size:18px;font-weight:700">Calibração ao Vivo</h2>
+      <div class="cal-btn-bar" style="margin-bottom:0">
+        <button class="btn btn-primary btn-sm" id="btn-cal" onclick="toggleCal()">
+          <span class="material-symbols-outlined" style="font-size:18px">play_arrow</span>
+          <span id="btn-cal-text">Iniciar</span>
+        </button>
+        <span class="cal-latency" id="cal-latency"></span>
+      </div>
+    </div>
+
+    <div class="cal-layout">
+      <!-- coluna esquerda: preview + diagnóstico -->
+      <div>
+        <div class="cal-frame-wrap" id="cal-frame-wrap">
+          <div class="cal-placeholder" id="cal-placeholder">
+            <span class="material-symbols-outlined" style="font-size:40px">videocam_off</span>
+            <span style="font-size:13px">Clique em <strong>Iniciar</strong> para visualizar a câmera</span>
+          </div>
+          <img id="cal-frame-img" src="" style="display:none;width:100%;border-radius:var(--r-lg)"/>
+        </div>
+
+        <!-- Barra de estatísticas -->
+        <div class="cal-stats" id="cal-stats" style="display:none">
+          <div class="cal-stat">
+            <div class="cal-stat-val" id="cs-total">0</div>
+            <div class="cal-stat-lbl">Detectados</div>
+          </div>
+          <div class="cal-stat">
+            <div class="cal-stat-val warn" id="cs-size">0</div>
+            <div class="cal-stat-lbl">Pequenos</div>
+          </div>
+          <div class="cal-stat">
+            <div class="cal-stat-val warn" id="cs-yaw">0</div>
+            <div class="cal-stat-lbl">Laterais</div>
+          </div>
+          <div class="cal-stat">
+            <div class="cal-stat-val success" id="cs-rec">0</div>
+            <div class="cal-stat-lbl">Reconhec.</div>
+          </div>
+          <div class="cal-stat">
+            <div class="cal-stat-val" id="cs-ms">—</div>
+            <div class="cal-stat-lbl">ms Hailo</div>
+          </div>
+        </div>
+
+        <!-- Cards por rosto -->
+        <div class="cal-face-grid" id="cal-face-grid"></div>
+      </div>
+
+      <!-- coluna direita: sliders de qualidade -->
+      <div class="cal-sliders">
+        <div style="font-family:var(--font-title);font-weight:700;font-size:13px;margin-bottom:12px">Parâmetros de Qualidade</div>
+        <p style="font-size:10px;color:var(--muted);margin-bottom:10px">Ajuste os sliders e veja o efeito imediatamente no preview. As mudanças são salvas automaticamente.</p>
+
+        <div class="cal-section-title">Detector Hailo (SCRFD)</div>
+        <div class="cal-slider-group">
+          <div class="cal-slider-label">Confiança mínima</div>
+          <div class="threshold-row">
+            <input type="range" id="cal-det-confidence" min="0.30" max="0.95" step="0.05" value="0.65"
+                   oninput="calSliderInput('detection_confidence', this.value, 'cal-det-conf-val', 'f2')"/>
+            <span class="threshold-val" id="cal-det-conf-val">0.65</span>
+          </div>
+          <div class="cal-slider-desc">Score do Hailo para aceitar um rosto. Baixe se estiver perdendo rostos reais.</div>
+        </div>
+
+        <div class="cal-section-title">Tamanho mínimo (pixels)</div>
+        <div class="cal-slider-group">
+          <div class="cal-slider-label">Para registrar evento</div>
+          <div class="threshold-row">
+            <input type="range" id="cal-min-detect" min="20" max="200" step="10" value="80"
+                   oninput="calSliderInput('min_face_px_detect', this.value, 'cal-min-detect-val', 'i')"/>
+            <span class="threshold-val" id="cal-min-detect-val">80</span>
+          </div>
+          <div class="cal-slider-desc">Abaixo disso, nenhum evento é registrado. Veja "Pequenos" na barra acima.</div>
+        </div>
+        <div class="cal-slider-group">
+          <div class="cal-slider-label">Para reconhecer</div>
+          <div class="threshold-row">
+            <input type="range" id="cal-min-recognize" min="40" max="300" step="10" value="120"
+                   oninput="calSliderInput('min_face_px_recognize', this.value, 'cal-min-rec-val', 'i')"/>
+            <span class="threshold-val" id="cal-min-rec-val">120</span>
+          </div>
+          <div class="cal-slider-desc">Rosto menor que isso não é comparado com o banco.</div>
+        </div>
+        <div class="cal-slider-group">
+          <div class="cal-slider-label">Para disparar alerta</div>
+          <div class="threshold-row">
+            <input type="range" id="cal-min-alert" min="60" max="400" step="10" value="150"
+                   oninput="calSliderInput('min_face_px_alert', this.value, 'cal-min-alert-val', 'i')"/>
+            <span class="threshold-val" id="cal-min-alert-val">150</span>
+          </div>
+          <div class="cal-slider-desc">Tamanho mínimo para enviar notificação WhatsApp.</div>
+        </div>
+
+        <div class="cal-section-title">Confiança do reconhecimento</div>
+        <div class="cal-slider-group">
+          <div class="cal-slider-label">Mínimo para alerta (%)</div>
+          <div class="threshold-row">
+            <input type="range" id="cal-alert-conf" min="20" max="99" step="1" value="50"
+                   oninput="calSliderInput('alert_min_confidence', this.value, 'cal-alert-conf-val', 'pct')"/>
+            <span class="threshold-val" id="cal-alert-conf-val">50%</span>
+          </div>
+          <div class="cal-slider-desc">Percentual mínimo de confiança para disparar alerta.</div>
+        </div>
+        <div class="cal-slider-group">
+          <div class="cal-slider-label">Threshold de reconhecimento</div>
+          <div class="threshold-row">
+            <input type="range" id="cal-threshold" min="0.20" max="0.70" step="0.01" value="0.45"
+                   oninput="calSliderInput('recognition_threshold', this.value, 'cal-thr-val', 'f2')"/>
+            <span class="threshold-val" id="cal-thr-val">0.45</span>
+          </div>
+          <div class="cal-slider-desc">Distância máxima para reconhecer. Menor = mais restritivo.</div>
+        </div>
+
+        <div class="cal-section-title">Filtro de ângulo facial</div>
+        <div class="cal-slider-group">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <input type="checkbox" id="cal-frontal" onchange="calCheckInput('require_frontal_face', this.checked)" style="width:auto;background:none;border:none;padding:0"/>
+            <span class="cal-slider-label" style="margin-bottom:0">Exigir rosto frontal</span>
+          </div>
+          <div class="cal-slider-label" style="margin-top:8px">Ângulo máximo (graus)</div>
+          <div class="threshold-row">
+            <input type="range" id="cal-max-yaw" min="10" max="80" step="5" value="40"
+                   oninput="calSliderInput('max_face_yaw_degrees', this.value, 'cal-yaw-val', 'deg')"/>
+            <span class="threshold-val" id="cal-yaw-val">40°</span>
+          </div>
+          <div class="cal-slider-desc">Veja "Laterais" na barra. Yaw de cada rosto aparece nos cards abaixo.</div>
+        </div>
+
+        <div class="cal-section-title">Verificação de pessoa</div>
+        <div class="cal-slider-group">
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="cal-person" onchange="calCheckInput('require_person_overlap', this.checked)" style="width:auto;background:none;border:none;padding:0"/>
+            <span class="cal-slider-label" style="margin-bottom:0">Exigir corpo humano (YOLO)</span>
+          </div>
+          <div class="cal-slider-desc" style="margin-top:4px">Confirma presença humana antes de processar rostos.</div>
+        </div>
+
+        <div style="margin-top:12px">
+          <button class="btn btn-ghost btn-sm" onclick="calReloadSettings()" style="width:100%">
+            <span class="material-symbols-outlined" style="font-size:15px">sync</span>Recarregar do banco
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aviso de incompatibilidade de embeddings -->
+    <div id="cal-embed-warning" style="display:none;margin-top:16px">
+      <div class="alert alert-error" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <span>⚠️ <strong>Atenção:</strong> O modelo de reconhecimento foi atualizado (buffalo_sc → buffalo_l). Os embeddings das pessoas cadastradas precisam ser regerados para o reconhecimento funcionar.</span>
+        <button class="btn btn-sm" style="background:var(--danger);white-space:nowrap" onclick="reloadAllEmbeddings()">
+          Recadastrar Embeddings
+        </button>
+      </div>
+    </div>
+
+    <!-- Seção de teste com foto -->
+    <div class="card" style="margin-top:20px">
       <div class="card-title">Teste com Foto</div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Faça upload de uma foto para testar o reconhecimento.</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Faça upload de uma foto para testar o reconhecimento com os parâmetros atuais.</p>
       <div class="upload-zone" id="test-zone" onclick="document.getElementById('test-file').click()"
            ondragover="event.preventDefault();this.classList.add('dragover')"
            ondragleave="this.classList.remove('dragover')"
@@ -513,7 +703,8 @@ input[type=range]{flex:1;accent-color:var(--accent)}
       </div>
       <div id="test-result" style="margin-top:12px;font-size:12px"></div>
     </div>
-    <div class="card">
+
+    <div class="card" style="margin-top:16px">
       <div class="card-title">Status do Sistema</div>
       <div id="cache-status" style="font-size:12px;color:var(--muted)">Verificando...</div>
       <div class="metric-grid" id="metric-grid" style="display:none">
@@ -1131,7 +1322,8 @@ function switchPage(page) {
   if (document.getElementById('modal-add-photo').classList.contains('open')) closeModal('modal-add-photo');
   if (page === 'persons') loadPersons();
   if (page === 'events') loadEvents(true);
-  if (page === 'settings') { loadCacheStatus(); loadThreshold(); }
+  if (page === 'settings') { loadCacheStatus(); loadThreshold(); calReloadSettings(); }
+  else { stopCal(); }
   if (page === 'config') loadConfigPage();
 }
 
@@ -2497,6 +2689,210 @@ async function deleteRtspCamera(id, label) {
     await fetch(API + `/settings/cameras/${id}`, { method: 'DELETE' });
     showToast('Removida', `${label} foi removida.`, 'info');
     loadRtspCameras();
+  } catch(e) { showToast('Erro', e.message, 'error'); }
+}
+
+// ====== CALIBRAÇÃO AO VIVO ======
+let _calMode    = false;
+let _calTimer   = null;
+let _calSaveDebounce = {};
+const CAL_INTERVAL_MS = 1500;
+
+function toggleCal() {
+  if (_calMode) stopCal(); else startCal();
+}
+
+function startCal() {
+  if (_calMode) return;
+  _calMode = true;
+  const btn = document.getElementById('btn-cal');
+  btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px">pause</span><span id="btn-cal-text">Pausar</span>';
+  _calTimer = setInterval(runCalFrame, CAL_INTERVAL_MS);
+  runCalFrame();
+}
+
+function stopCal() {
+  _calMode = false;
+  if (_calTimer) { clearInterval(_calTimer); _calTimer = null; }
+  const btn = document.getElementById('btn-cal');
+  if (btn) btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px">play_arrow</span><span id="btn-cal-text">Iniciar</span>';
+  document.getElementById('cal-latency').textContent = '';
+}
+
+async function runCalFrame() {
+  if (!_calMode) return;
+  const t0 = Date.now();
+  try {
+    const camParam = _activeCameraId && _activeCameraId !== 'imx0'
+      ? `&camera_id=${encodeURIComponent(_activeCameraId)}` : '';
+    const data = await fetch(
+      API + '/detection/faces?dedup=false&persist=false&process_alerts=false&include_frame=true' + camParam
+    ).then(r => r.json());
+    const ms = Date.now() - t0;
+    document.getElementById('cal-latency').textContent = `${ms}ms`;
+
+    // Atualiza frame
+    const img = document.getElementById('cal-frame-img');
+    const ph  = document.getElementById('cal-placeholder');
+    if (data.frame_base64) {
+      img.src = 'data:image/jpeg;base64,' + data.frame_base64;
+      img.style.display = 'block';
+      ph.style.display  = 'none';
+    }
+
+    // Atualiza barra de stats
+    const stats = data.detection_stats || {};
+    document.getElementById('cal-stats').style.display = 'flex';
+    document.getElementById('cs-total').textContent = stats.scrfd_total ?? data.face_count ?? 0;
+    document.getElementById('cs-size').textContent  = stats.filtered_size ?? 0;
+    document.getElementById('cs-yaw').textContent   = stats.filtered_yaw  ?? 0;
+    document.getElementById('cs-rec').textContent   = stats.recognized    ?? 0;
+    document.getElementById('cs-ms').textContent    = data.inference_ms   ?? '—';
+
+    // Aviso embedding incompatível
+    const warnEl = document.getElementById('cal-embed-warning');
+    const hasPersons = (stats.scrfd_total ?? 0) > 0;
+    const noRec = (stats.recognized ?? 0) === 0 && hasPersons;
+    // só mostra aviso após alguns frames para evitar falso positivo
+    if (noRec && (parseInt(warnEl.dataset.count||0) > 4)) warnEl.style.display = 'block';
+    warnEl.dataset.count = String(parseInt(warnEl.dataset.count||0) + (noRec ? 1 : -2));
+
+    // Renderiza face cards
+    renderCalFaceCards(data.faces || []);
+  } catch(e) {
+    document.getElementById('cal-latency').textContent = 'erro';
+  }
+}
+
+function renderCalFaceCards(faces) {
+  const grid = document.getElementById('cal-face-grid');
+  if (!faces.length) { grid.innerHTML = ''; return; }
+
+  grid.innerHTML = faces.map((f, i) => {
+    const isFiltered = !!f.filter_reason;
+    const isMatched  = f.matched && !isFiltered;
+    const cls = isFiltered ? 'filtered' : isMatched ? 'matched' : 'unknown';
+
+    const sizeColor = (f.width >= 150 && f.height >= 150) ? 'ok' : (f.width >= 80 ? '' : 'bad');
+    const yawColor  = f.yaw <= 25 ? 'ok' : f.yaw <= 45 ? 'warn' : 'bad';
+    const confColor = f.recognition_confidence >= 65 ? 'ok' : f.recognition_confidence >= 40 ? 'warn' : 'bad';
+    const detColor  = f.confidence >= 0.65 ? 'ok' : f.confidence >= 0.45 ? 'warn' : 'bad';
+
+    let title = `Rosto #${i + 1}`;
+    if (isFiltered) title += ` — <span style="color:var(--danger)">${esc(f.filter_reason)}</span>`;
+    else if (isMatched) title += ` — <span style="color:var(--success)">${esc(f.person_name || '?')}</span>`;
+    else title += ' — <span style="color:var(--muted)">Desconhecido</span>';
+
+    return `<div class="cal-face-card ${cls}">
+      <div class="cal-face-header">
+        <div class="cal-face-title">${title}</div>
+      </div>
+      <div class="cal-face-pills">
+        <span class="cal-pill ${sizeColor}">📐 ${f.width}×${f.height}px</span>
+        <span class="cal-pill ${yawColor}">↔ Yaw ${f.yaw?.toFixed(0) ?? '?'}°</span>
+        <span class="cal-pill ${detColor}">🎯 Det ${(f.confidence * 100).toFixed(0)}%</span>
+        ${isMatched ? `<span class="cal-pill ${confColor}">✓ Rec ${f.recognition_confidence?.toFixed(0)}%</span>` : ''}
+        ${!isFiltered && !isMatched ? `<span class="cal-pill bad">? dist ${f.recognition_distance?.toFixed(3)}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function calReloadSettings() {
+  try {
+    const data = await fetch(API + '/settings').then(r => r.json());
+    const set = (id, val, suffix) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    };
+    const setVal = (id, val, fmt) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (fmt === 'f2') el.textContent = parseFloat(val).toFixed(2);
+      else if (fmt === 'pct') el.textContent = Math.round(parseFloat(val)) + '%';
+      else if (fmt === 'deg') el.textContent = parseInt(val) + '°';
+      else el.textContent = val;
+    };
+    const detConf = parseFloat(data.detection_confidence) || 0.65;
+    set('cal-det-confidence', detConf); setVal('cal-det-conf-val', detConf, 'f2');
+    set('cal-min-detect',    parseInt(data.min_face_px_detect)    || 80);   document.getElementById('cal-min-detect-val').textContent = parseInt(data.min_face_px_detect) || 80;
+    set('cal-min-recognize', parseInt(data.min_face_px_recognize) || 120);  document.getElementById('cal-min-rec-val').textContent    = parseInt(data.min_face_px_recognize) || 120;
+    set('cal-min-alert',     parseInt(data.min_face_px_alert)     || 150);  document.getElementById('cal-min-alert-val').textContent   = parseInt(data.min_face_px_alert) || 150;
+    const alertConf = parseInt(data.alert_min_confidence) || 50;
+    set('cal-alert-conf', alertConf); setVal('cal-alert-conf-val', alertConf, 'pct');
+    const thr = parseFloat(data.recognition_threshold) || 0.45;
+    set('cal-threshold', thr); setVal('cal-thr-val', thr, 'f2');
+    document.getElementById('cal-frontal').checked = data.require_frontal_face !== 'false';
+    const maxYaw = parseInt(data.max_face_yaw_degrees) || 40;
+    set('cal-max-yaw', maxYaw); setVal('cal-yaw-val', maxYaw, 'deg');
+    document.getElementById('cal-person').checked = data.require_person_overlap === 'true';
+  } catch(e) { showToast('Erro', 'Não foi possível carregar configurações', 'error'); }
+}
+
+function calSliderInput(key, rawVal, labelId, fmt) {
+  const el = document.getElementById(labelId);
+  if (el) {
+    if (fmt === 'f2') el.textContent = parseFloat(rawVal).toFixed(2);
+    else if (fmt === 'pct') el.textContent = Math.round(parseFloat(rawVal)) + '%';
+    else if (fmt === 'deg') el.textContent = parseInt(rawVal) + '°';
+    else el.textContent = rawVal;
+  }
+  // Debounce: espera 600ms após o usuário parar de mover
+  clearTimeout(_calSaveDebounce[key]);
+  _calSaveDebounce[key] = setTimeout(() => calSaveParam(key, rawVal), 600);
+}
+
+function calCheckInput(key, val) {
+  calSaveParam(key, val);
+}
+
+async function calSaveParam(key, val) {
+  try {
+    await fetch(API + '/settings', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ [key]: typeof val === 'boolean' ? val : (isNaN(val) ? val : +val) }),
+    });
+    // Sincroniza com a página de Configurações
+    syncCalToConfig(key, val);
+  } catch(e) { /* silencia — usuário verá na próxima captura */ }
+}
+
+function syncCalToConfig(key, val) {
+  // Mantém os campos da página Configurações sincronizados
+  const map = {
+    detection_confidence:  ['cfg-det-confidence', 'cfg-det-conf-val'],
+    min_face_px_detect:    ['cfg-min-face-detect', null],
+    min_face_px_recognize: ['cfg-min-face-recognize', null],
+    min_face_px_alert:     ['cfg-min-face-alert', null],
+    alert_min_confidence:  ['cfg-alert-min-conf', 'cfg-alert-min-conf-val'],
+    recognition_threshold: ['slider-threshold', 'label-threshold'],
+    require_frontal_face:  ['cfg-require-frontal', null],
+    max_face_yaw_degrees:  ['cfg-max-yaw', 'cfg-max-yaw-val'],
+    require_person_overlap:['cfg-require-person', null],
+  };
+  const ids = map[key];
+  if (!ids) return;
+  const inputEl = document.getElementById(ids[0]);
+  if (inputEl) {
+    if (inputEl.type === 'checkbox') inputEl.checked = val === true || val === 'true';
+    else inputEl.value = val;
+  }
+  if (ids[1]) {
+    const labelEl = document.getElementById(ids[1]);
+    if (labelEl) labelEl.textContent = typeof val === 'number' ? val.toFixed(2) : val;
+  }
+}
+
+async function reloadAllEmbeddings() {
+  if (!confirm('Isso irá recalcular todos os embeddings com o modelo buffalo_l. O processo pode demorar alguns minutos. Continuar?')) return;
+  try {
+    showToast('Processando', 'Recalculando embeddings...', 'info');
+    const r = await fetch(API + '/recognition/reload-embeddings', { method: 'POST' });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Erro');
+    const d = await r.json();
+    document.getElementById('cal-embed-warning').style.display = 'none';
+    document.getElementById('cal-embed-warning').dataset.count = '0';
+    showToast('Concluído', `${d.reloaded} embeddings recalculados.`, 'success');
   } catch(e) { showToast('Erro', e.message, 'error'); }
 }
 
