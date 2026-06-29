@@ -85,9 +85,9 @@ class _PipelineOutput:
     deduplicated: bool
     event_id: int | None
     timestamp: datetime
-    detection_stats: dict = None
     alerts: list[AlertSummary]
     active_alert: AlertSummary | None
+    detection_stats: dict = None
 
 
 @router.get("/status")
